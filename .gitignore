@@ -1,0 +1,9 @@
+# Temporary files
+*~
+.*
+
+# Build assets
+*.o
+
+# Binaries
+run_tests
