@@ -6,8 +6,13 @@
 #ifndef SA_H
 #define SA_H
 
-#include <stdbool.h>
+////////////////////////////////////////////////////////////////////////////////
+// Bools, for Windows support...
+////////////////////////////////////////////////////////////////////////////////
 
+typedef int sa_bool_t;
+static const sa_bool_t sa_true = 1;
+static const sa_bool_t sa_false = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Data structures
@@ -25,7 +30,7 @@ struct sa_net {
 	
 	// Has this net been counted when computing net weight? (Used by
 	// sa_get_swap_cost).
-	bool counted;
+	sa_bool_t counted;
 	
 	// The set of vertices which belong to this net
 	sa_vertex_t *vertices[];
@@ -60,7 +65,7 @@ typedef struct sa_state {
 	size_t height;
 	
 	// Is the network a torus?
-	bool has_wrap_around_links;
+	sa_bool_t has_wrap_around_links;
 	
 	// The number of resource types in existance
 	size_t num_resource_types;
@@ -202,7 +207,7 @@ void sa_free_net(sa_net_t *net);
  * @param y The Y coordinate of the chip the vertex should be added to.
  * @param movable Is the vertex a movable vertex or not?
  */
-void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, bool movable);
+void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, sa_bool_t movable);
 
 /**
  * Add the specified vertex to a net, updating the datastructures of both.
@@ -275,7 +280,7 @@ void sa_add_resources(const sa_state_t *state, int *a, const int *b);
  * @param state The SA algorithm state for the resources being subtracted.
  * @param a Pointer to the resource array to be added-to (will be modified)
  */
-bool sa_positive_resources(const sa_state_t *state, const int *a);
+sa_bool_t sa_positive_resources(const sa_state_t *state, const int *a);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -316,7 +321,7 @@ void sa_add_vertices_to_chip(sa_state_t *state, sa_vertex_t *vertices, int x, in
  * @returns True if the vertices fit (and have been added to the chip) and
  *          false otherwise (leaving everything unchanged).
  */
-bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, int x, int y);
+sa_bool_t sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, int x, int y);
 
 /**
  * Remove the specified movable vertex from its chip, incrementing the resources
@@ -343,9 +348,9 @@ void sa_remove_vertex_from_chip(sa_state_t *state, sa_vertex_t *vertex);
  *
  * @returns True if required space was freed up, false otherwise.
  */
-bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
-                          const int *resources_required,
-                          sa_vertex_t **removed_vertices);
+sa_bool_t sa_make_room_on_chip(sa_state_t *state, int x, int y,
+                               const int *resources_required,
+                               sa_vertex_t **removed_vertices);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -432,7 +437,7 @@ double sa_get_swap_cost(sa_state_t *state,
  *          could not be swapped with the chosen target chip without running
  *          out of room.
  */
-bool sa_step(sa_state_t *state, int distance_limit, double temperature, double *cost);
+sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, double *cost);
 
 /**
  * Run a predetermined number of random swaps at a given temperature and

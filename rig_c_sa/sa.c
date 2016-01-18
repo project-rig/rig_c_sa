@@ -5,7 +5,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 #include <alloca.h>
 #include <string.h>
@@ -21,6 +20,8 @@
 
 sa_state_t *sa_new(size_t width, size_t height, size_t num_resource_types,
                    size_t num_vertices, size_t num_nets) {
+	size_t x, y, r, i;
+	
 	assert(width > 0);
 	assert(height > 0);
 	assert(width > 1 || height > 1);
@@ -32,7 +33,7 @@ sa_state_t *sa_new(size_t width, size_t height, size_t num_resource_types,
 	if (state == NULL)
 		return NULL;
 	
-	state->has_wrap_around_links = false;
+	state->has_wrap_around_links = sa_false;
 	state->num_movable_vertices = 0;
 	
 	// A simple machine with Cores and SDRAM
@@ -57,9 +58,9 @@ sa_state_t *sa_new(size_t width, size_t height, size_t num_resource_types,
 	}
 	
 	// Initialise the lookup for chip resources. Resources are -ve on dead chips.
-	for (size_t x = 0; x < state->width; x++) {
-		for (size_t y = 0; y < state->height; y++) {
-			for (size_t r = 0; r < state->num_resource_types; r++) {
+	for (x = 0; x < state->width; x++) {
+		for (y = 0; y < state->height; y++) {
+			for (r = 0; r < state->num_resource_types; r++) {
 				sa_set_chip_resources(state, x, y, r,  -1);
 			}
 			sa_set_chip_vertex(state, x, y, NULL);
@@ -75,7 +76,7 @@ sa_state_t *sa_new(size_t width, size_t height, size_t num_resource_types,
 		free(state);
 		return NULL;
 	}
-	for (size_t i = 0; i < state->num_vertices; i++)
+	for (i = 0; i < state->num_vertices; i++)
 		state->vertices[i] = NULL;
 	
 	// Allocate memory for net pointers
@@ -88,20 +89,21 @@ sa_state_t *sa_new(size_t width, size_t height, size_t num_resource_types,
 		free(state);
 		return NULL;
 	}
-	for (size_t i = 0; i < state->num_nets; i++)
+	for (i = 0; i < state->num_nets; i++)
 		state->nets[i] = NULL;
 	
 	return state;
 }
 
 void sa_free(sa_state_t *state) {
+	size_t n, v;
 	if (!state)
 		return;
 	
-	for (size_t n = 0; n < state->num_nets; n++)
+	for (n = 0; n < state->num_nets; n++)
 		sa_free_net(state->nets[n]);
 	
-	for (size_t v = 0; v < state->num_vertices; v++)
+	for (v = 0; v < state->num_vertices; v++)
 		sa_free_vertex(state->vertices[v]);
 	
 	free(state->vertices);
@@ -112,6 +114,7 @@ void sa_free(sa_state_t *state) {
 }
 
 sa_vertex_t *sa_new_vertex(const sa_state_t *state, size_t num_nets) {
+	size_t i;
 	// Allocate the array of resources
 	int *resources = calloc(state->num_resource_types, sizeof(int));
 	if (resources == NULL)
@@ -130,7 +133,7 @@ sa_vertex_t *sa_new_vertex(const sa_state_t *state, size_t num_nets) {
 	
 	// Keep valgrind happy...
 	vertex->next = NULL;
-	for (size_t i = 0; i < num_nets; i++)
+	for (i = 0; i < num_nets; i++)
 		vertex->nets[i] = NULL;
 	
 	return vertex;
@@ -149,6 +152,7 @@ void sa_free_vertex(sa_vertex_t *vertex) {
  * vertices.
  */
 sa_net_t *sa_new_net(const sa_state_t *state, size_t num_vertices) {
+	size_t i;
 	(void) state;
 	
 	sa_net_t *net = malloc(sizeof(sa_net_t) + (sizeof(sa_vertex_t *) * num_vertices));
@@ -156,10 +160,10 @@ sa_net_t *sa_new_net(const sa_state_t *state, size_t num_vertices) {
 		return NULL;
 	
 	net->num_vertices = num_vertices;
-	net->counted = false;
+	net->counted = sa_false;
 	
 	// Keep valgrind happy
-	for (size_t i = 0; i < num_vertices; i++)
+	for (i = 0; i < num_vertices; i++)
 		net->vertices[i] = NULL;
 	
 	return net;
@@ -200,23 +204,26 @@ void sa_set_chip_vertex(sa_state_t *state, size_t x, size_t y, sa_vertex_t *vert
 }
 
 void sa_subtract_resources(const sa_state_t *state, int *a, const int *b) {
-	for (size_t i = 0; i < state->num_resource_types; i++)
+	size_t i;
+	for (i = 0; i < state->num_resource_types; i++)
 		a[i] -= b[i];
 }
 
 void sa_add_resources(const sa_state_t *state, int *a, const int *b) {
-	for (size_t i = 0; i < state->num_resource_types; i++)
+	size_t i;
+	for (i = 0; i < state->num_resource_types; i++)
 		a[i] += b[i];
 }
 
-bool sa_positive_resources(const sa_state_t *state, const int *a) {
-	for (size_t i = 0; i < state->num_resource_types; i++)
+sa_bool_t sa_positive_resources(const sa_state_t *state, const int *a) {
+	size_t i;
+	for (i = 0; i < state->num_resource_types; i++)
 		if (a[i] < 0)
-			return false;
-	return true;
+			return sa_false;
+	return sa_true;
 }
 
-void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, bool movable) {
+void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, sa_bool_t movable) {
 	vertex->x = x;
 	vertex->y = y;
 	
@@ -241,11 +248,11 @@ void sa_add_vertices_to_chip(sa_state_t *state, sa_vertex_t *vertices, int x, in
 		vertex->next = NULL;
 		
 		// Add it to the chip
-		sa_add_vertex_to_chip(state, vertex, x, y, true);
+		sa_add_vertex_to_chip(state, vertex, x, y, sa_true);
 	}
 }
 
-bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, int x, int y) {
+sa_bool_t sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, int x, int y) {
 	int *resources_available = alloca(sizeof(int) * state->num_resource_types);
 	memcpy(resources_available, sa_get_chip_resources_ptr(state, x, y),
 	       sizeof(int) * state->num_resource_types);
@@ -277,10 +284,10 @@ bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, in
 			memcpy(sa_get_chip_resources_ptr(state, x, y), resources_available,
 			       sizeof(int) * state->num_resource_types);
 		}
-		return true;
+		return sa_true;
 	} else {
 		// The vertices didn't fit, just stop now
-		return false;
+		return sa_false;
 	}
 }
 
@@ -390,9 +397,9 @@ void sa_get_random_nearby_chip(const sa_state_t *state, int x, int y,
 }
 
 
-bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
-                          const int *resources_required,
-                          sa_vertex_t **removed_vertices) {
+sa_bool_t sa_make_room_on_chip(sa_state_t *state, int x, int y,
+                               const int *resources_required,
+                               sa_vertex_t **removed_vertices) {
 	
 	// Create a local copy of the resource requirement on the stack
 	int *resources_available = alloca(sizeof(int) * state->num_resource_types);
@@ -420,7 +427,7 @@ bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
 			// failure.
 			sa_set_chip_vertex(state, x, y, *removed_vertices);
 			*removed_vertices = NULL;
-			return false;
+			return sa_false;
 		}
 	}
 	
@@ -431,10 +438,11 @@ bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
 		       sizeof(int) * state->num_resource_types);
 	}
 	
-	return true;
+	return sa_true;
 }
 
 double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
+	size_t i;
 	// If 1 or 0 vertices in the net, the net can never have non-zero cost. This
 	// also saves some special-case handling below.
 	if (net->num_vertices <= 1)
@@ -457,7 +465,7 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 		// Create a sorted array of the x and y positions
 		int xs[net->num_vertices];
 		int ys[net->num_vertices];
-		for (size_t i = 0; i < net->num_vertices; i++) {
+		for (i = 0; i < net->num_vertices; i++) {
 			xs[i] = net->vertices[i]->x;
 			ys[i] = net->vertices[i]->y;
 		}
@@ -472,7 +480,7 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 		int last_y = ys[net->num_vertices - 1] - state->height;
 		int max_delta_x = 0;
 		int max_delta_y = 0;
-		for (size_t i = 0; i < net->num_vertices; i++) {
+		for (i = 0; i < net->num_vertices; i++) {
 			int delta_x = xs[i] - last_x;
 			int delta_y = ys[i] - last_y;
 			last_x = xs[i];
@@ -494,7 +502,7 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 		int max_x = min_x;
 		int min_y = net->vertices[0]->y;
 		int max_y = min_y;
-		for (size_t i = 1; i < net->num_vertices; i++) {
+		for (i = 1; i < net->num_vertices; i++) {
 			if (net->vertices[i]->x < min_x)
 				min_x = net->vertices[i]->x;
 			if (max_x < net->vertices[i]->x)
@@ -513,15 +521,18 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 double sa_get_swap_cost(sa_state_t *state,
                         int ax, int ay, sa_vertex_t *va,
                         int bx, int by, sa_vertex_t *vb) {
+	int which_verts;
+	size_t i;
+	
 	// Calculate total cost of all nets before swap
 	double before_cost = 0.0;
-	for (int which_verts = 0; which_verts < 2; which_verts++) {
+	for (which_verts = 0; which_verts < 2; which_verts++) {
 		sa_vertex_t *v = (which_verts == 0) ? va : vb;
 		while (v) {
-			for (size_t i = 0; i < v->num_nets; i++) {
+			for (i = 0; i < v->num_nets; i++) {
 				if (!v->nets[i]->counted) {
 					before_cost += sa_get_net_cost(state, v->nets[i]);
-					v->nets[i]->counted = true;
+					v->nets[i]->counted = sa_true;
 				}
 			}
 			v = v->next;
@@ -546,13 +557,13 @@ double sa_get_swap_cost(sa_state_t *state,
 	
 	// Calculate the cost after swap
 	double after_cost = 0.0;
-	for (int which_verts = 0; which_verts < 2; which_verts++) {
+	for (which_verts = 0; which_verts < 2; which_verts++) {
 		sa_vertex_t *v = (which_verts == 0) ? va : vb;
 		while (v) {
-			for (size_t i = 0; i < v->num_nets; i++) {
+			for (i = 0; i < v->num_nets; i++) {
 				if (v->nets[i]->counted) { // Meaning inverted in this pass
 					after_cost += sa_get_net_cost(state, v->nets[i]);
-					v->nets[i]->counted = false; // Meaning inverted in this pass
+					v->nets[i]->counted = sa_false; // Meaning inverted in this pass
 				}
 			}
 			v = v->next;
@@ -562,7 +573,7 @@ double sa_get_swap_cost(sa_state_t *state,
 	return after_cost - before_cost;
 }
 
-bool sa_step(sa_state_t *state, int distance_limit, double temperature, double *cost) {
+sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, double *cost) {
 	
 	// Select a random vertex to swap
 	sa_vertex_t *va = sa_get_random_movable_vertex(state);
@@ -582,7 +593,7 @@ bool sa_step(sa_state_t *state, int distance_limit, double temperature, double *
 	                          va->vertex_resources,
 	                          &vb)) {
 		*cost = 0.0;
-		return false;
+		return sa_false;
 	}
 	
 	// Remove the initially randomly selected vertex from its chip.
@@ -594,8 +605,8 @@ bool sa_step(sa_state_t *state, int distance_limit, double temperature, double *
 	// increase it are acceptable with a probability related to how bad the swap
 	// is and how high the temperature is.
 	*cost = sa_get_swap_cost(state, ax, ay, va, bx, by, vb);
-	bool swap_accepted = ((*cost) <= 0.0)
-	                     || ((double)rand() / RAND_MAX) < exp(-(*cost) / temperature);
+	sa_bool_t swap_accepted = ((*cost) <= 0.0)
+	                          || ((double)rand() / RAND_MAX) < exp(-(*cost) / temperature);
 	
 	// Attempt to fit the vertices removed from chip B into the space left behind
 	// after removing va from chip A. If not enough space (or if the swap was not
@@ -605,18 +616,20 @@ bool sa_step(sa_state_t *state, int distance_limit, double temperature, double *
 		sa_add_vertices_to_chip(state, vb, bx, by);
 		sa_add_vertices_to_chip(state, va, ax, ay);
 		*cost = 0.0;
-		return false;
+		return sa_false;
 	}
 	
 	// Finally put va onto vb.
 	sa_add_vertices_to_chip(state, va, bx, by);
 	
 	// Swap completed successfully
-	return true;
+	return sa_true;
 }
 
 void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, double temperature,
                   size_t *num_accepted, double *cost_delta, double *cost_delta_sd) {
+	size_t i;
+	
 	*num_accepted = 0;
 	*cost_delta = 0.0;
 	
@@ -624,9 +637,9 @@ void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, doubl
 	double mean = 0.0;
 	double m2 = 0.0;
 	
-	for (size_t i = 0; i < num_steps; i++) {
+	for (i = 0; i < num_steps; i++) {
 		double cost_change;
-		bool accepted = sa_step(state, distance_limit, temperature, &cost_change);
+		sa_bool_t accepted = sa_step(state, distance_limit, temperature, &cost_change);
 		
 		if (accepted)
 			(*num_accepted)++;

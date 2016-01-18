@@ -28,10 +28,13 @@ ffi.set_source(
     libraries=["m"],
     sources=[os.path.join(source_dir, "sa.c")],
     include_dirs=[source_dir],
-    extra_compile_args=["--std=c99", "-O3"],
+    extra_compile_args=["-O3"],
 )
 
 ffi.cdef("""
+    // For Windows support...
+    typedef int sa_bool_t;
+    
     // Set C random seed
     void srand(unsigned int seed);
     
@@ -49,7 +52,7 @@ ffi.cdef("""
         ...;
     };
     typedef struct sa_state {
-        bool has_wrap_around_links;
+        sa_bool_t has_wrap_around_links;
         sa_net_t **nets;
         size_t num_movable_vertices;
         sa_vertex_t **vertices;
@@ -65,7 +68,7 @@ ffi.cdef("""
     
     // Initialisation functions
     void sa_add_vertex_to_net(const sa_state_t *state, sa_net_t *net, sa_vertex_t *vertex);
-    void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, bool movable);
+    void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, sa_bool_t movable);
     void sa_set_chip_resources(sa_state_t *state, size_t x, size_t y,
                                size_t resource, int value);
     
