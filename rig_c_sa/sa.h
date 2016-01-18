@@ -13,12 +13,8 @@
 // Data structures
 ////////////////////////////////////////////////////////////////////////////////
 
-struct sa_net;
 typedef struct sa_net sa_net_t;
-
-struct sa_vertex;
 typedef struct sa_vertex sa_vertex_t;
-
 
 // Information associated with an individual net
 struct sa_net {
@@ -167,7 +163,8 @@ void sa_free(sa_state_t *state);
  *  - A pointer to the new vertex should be added to state->vertices[] (see
  *    sa_new()).
  *  - All resources consumed by the vertex must be specified in
- *    vertex->vertex_resources[]. These values must then remain unchanged.
+ *    vertex->vertex_resources[]. These values must not be changed once the
+ *    vertex has been added to a chip.
  *  - The vertex should be added to a specific chip using
  *    sa_add_vertex_to_chip() *after* setting all vertex resource requirements.
  *  - All nets this vertex is connected to must be created using

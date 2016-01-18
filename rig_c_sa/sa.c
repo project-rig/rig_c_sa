@@ -246,13 +246,14 @@ bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, in
 	
 	if (sa_positive_resources(state, resources_available)) {
 		// The vertices fit, insert them
-		if (v)
+		if (vertices) {
 			v->next = SA_STATE_CHIP_VERTICES(state, x, y);
-		SA_STATE_CHIP_VERTICES(state, x, y) = vertices;
-		
-		// And update the resource consumption
-		memcpy(&SA_STATE_CHIP_RESOURCES(state, x, y, 0), resources_available,
-		       sizeof(int) * state->num_resource_types);
+			SA_STATE_CHIP_VERTICES(state, x, y) = vertices;
+			
+			// And update the resource consumption
+			memcpy(&SA_STATE_CHIP_RESOURCES(state, x, y, 0), resources_available,
+			       sizeof(int) * state->num_resource_types);
+		}
 		return true;
 	} else {
 		// The vertices didn't fit, just stop now
@@ -536,6 +537,7 @@ double sa_get_swap_cost(sa_state_t *state,
 }
 
 bool sa_step(sa_state_t *state, int distance_limit, double temperature, double *cost) {
+	
 	// Select a random vertex to swap
 	sa_vertex_t *va = sa_get_random_movable_vertex(state);
 	int ax = va->x;
@@ -605,7 +607,7 @@ void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, doubl
 		
 		*cost_delta += cost_change;
 		
-		sum_squares += cost_change;
+		sum += cost_change;
 		sum_squares += cost_change * cost_change;
 	}
 	

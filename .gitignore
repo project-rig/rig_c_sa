@@ -2,8 +2,10 @@
 *~
 .*
 
-# Build assets
+# C build artefacts
 *.o
+*.so
 
-# Binaries
-run_tests
+# Pip cruft
+pip-selfcheck.json
+*.egg-info

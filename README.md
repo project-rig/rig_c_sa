@@ -9,7 +9,7 @@ Running tests
 Tests use the 'check' library. To build these the following snippet can be
 used:
 
-	$ gcc -lm -lcheck -g -Iinclude -o run_tests tests/*.c lib/*.c
+	$ gcc -lm -lcheck -g -Irig_c_sa -o run_tests tests/*.c rig_c_sa/*.c
 
 Tests should be run under valgrind to ensure any memory leaks are found:
 
