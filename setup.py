@@ -6,9 +6,9 @@ setup(
     name="rig_c_sa",
     version="0.1.0",
     packages=find_packages(),
-    package_data = {
-        'rig_c_sa': ['sa.c', 'sa.h'],
-    },
+    
+    # Files required by CFFI wrapper
+    package_data = {'rig_c_sa': ['sa.c', 'sa.h']},
 
     # Metadata for PyPi
     url="https://github.com/project-rig/rig_c_sa",
