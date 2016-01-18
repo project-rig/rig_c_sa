@@ -35,7 +35,7 @@ ffi.set_source(
     libraries=["m"],
     sources=[os.path.join(source_dir, "sa.c")],
     include_dirs=[source_dir],
-    extra_compile_args=["-O3"],
+    extra_compile_args=["--std=c99", "-O3"],
 )
 
 ffi.cdef("""
