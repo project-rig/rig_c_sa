@@ -19,8 +19,9 @@ ffi.set_source(
         #include "sa.h"
         
         double sa_get_total_cost(sa_state_t *state) {
+            size_t i;
             double total = 0.0;
-            for (size_t i = 0; i < state->num_nets; i++)
+            for (i = 0; i < state->num_nets; i++)
                 total += sa_get_net_cost(state, state->nets[i]);
             return total;
         }
