@@ -19,7 +19,7 @@ Running tests
 The C library is tested using using the 'check' library. The test suite can be
 built using the following command:
 
-	$ gcc -std=c89 -g -o run_tests -Irig_c_sa tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check)
+	$ gcc -std=c99 -g -o run_tests -Irig_c_sa tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check)
 
 The test suite should then be run under valgrind to ensure any memory leaks are found:
 
