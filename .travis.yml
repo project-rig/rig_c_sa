@@ -8,7 +8,7 @@ addons:
       - libffi-dev
 script:
       # Compile the test suite
-      - $CC -std=c89 -g -Irig_c_sa -o run_tests tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check) 
+      - $CC -g -Irig_c_sa -o run_tests tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check) 
       # Make sure test suite passes without leaking memory
       - valgrind -q --leak-check=full ./run_tests
       # Make sure CFFI wrapper compiles
