@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="rig_c_sa",
-    version="0.1.1",
+    version="0.1.2",
     packages=find_packages(),
     
     # Files required by CFFI wrapper
