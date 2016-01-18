@@ -12,6 +12,6 @@ script:
       # Make sure test suite passes without leaking memory
       - valgrind -q --leak-check=full ./run_tests
       # Make sure CFFI wrapper compiles
-      - python setup.py install
+      - python setup.py install --user
 notifications:
         email: false
