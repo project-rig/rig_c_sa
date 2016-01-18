@@ -1,7 +1,7 @@
 `rig_c_sa`: Python C module for the Rig simulated annealing placer C kernel
 ===========================================================================
 
-[![PyPi version](https://img.shields.io/pypi/v/ric_c_sa.svg?style=flat)](https://pypi.python.org/pypi/ric_c_sa)
+[![PyPi version](https://img.shields.io/pypi/v/rig_c_sa.svg?style=flat)](https://pypi.python.org/pypi/rig_c_sa)
 [![Build status](https://travis-ci.org/project-rig/rig_c_sa.svg?branch=master)](https://travis-ci.org/project-rig/rig_c_sa)
 
 This Python package contains an efficient set of datastructures and
