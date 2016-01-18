@@ -595,8 +595,8 @@ void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, doubl
 	*cost_delta = 0.0;
 	
 	// Used to calculate a running standard-deviation of cost changes
-	double sum_squares = 0.0;
-	double sum = 0.0;
+	double mean = 0.0;
+	double m2 = 0.0;
 	
 	for (size_t i = 0; i < num_steps; i++) {
 		double cost_change;
@@ -607,11 +607,11 @@ void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, doubl
 		
 		*cost_delta += cost_change;
 		
-		sum += cost_change;
-		sum_squares += cost_change * cost_change;
+		double delta = cost_change - mean;
+		mean += delta / (i + 1.0);
+		m2 += delta * (cost_change - mean);
 	}
 	
 	// Calculate the standard deviation of cost changes
-	double mean = sum / num_steps;
-	*cost_delta_sd = sqrt(((num_steps * sum_squares) - (mean * mean)) / (num_steps * (num_steps - 1.0)));
+	*cost_delta_sd = sqrt(m2 / (num_steps - 1.0));
 }
