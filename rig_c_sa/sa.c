@@ -6,13 +6,21 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <alloca.h>
 #include <string.h>
 #include <assert.h>
 
 #include <math.h>
 
 #include "sa.h"
+
+// Windows support for alloca...
+#if defined(_WIN32) || defined(WIN32)
+#include <malloc.h>
+#define alloca _alloca
+#else
+#include <alloca.h>
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Constructors & Destructors
