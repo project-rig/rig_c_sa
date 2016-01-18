@@ -6,7 +6,7 @@ Standalone usage:
 """
 
 import os
-
+import platform
 from cffi import FFI
 ffi = FFI()
 
@@ -26,10 +26,10 @@ ffi.set_source(
             return total;
         }
     """,
-    libraries=["m"],
+    libraries=[] if platform.system() == "Windows" else ["m"],
     sources=[os.path.join(source_dir, "sa.c")],
     include_dirs=[source_dir],
-    extra_compile_args=["-O3"],
+    extra_compile_args=[] if platform.system() == "Windows" else ["-O3"],
 )
 
 ffi.cdef("""
