@@ -88,23 +88,6 @@ typedef struct sa_state {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Accessor utillty macros
-////////////////////////////////////////////////////////////////////////////////
-
-// Index into the resource array
-#define SA_STATE_CHIP_RESOURCES(state, x, y, resource) \
-	((state)->chip_resources[ \
-		((y) * (state)->width * (state)->num_resource_types) \
-		+ ((x) * (state)->num_resource_types) \
-		+ (resource) \
-	])
-
-// Index into the chip vertices array
-#define SA_STATE_CHIP_VERTICES(state, x, y) \
-	((state)->chip_vertices[((y) * (state)->width) + (x)])
-
-
-////////////////////////////////////////////////////////////////////////////////
 // Constructors
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -122,7 +105,7 @@ typedef struct sa_state {
  *  - state->has_wrap_around_links should be set to true or false depending on
  *    whether the system is configured as a torus (true) or not (false).
  *  - the state->chip_resources array should be initialised (see
- *    SA_STATE_CHIP_RESOURCES) to give the resources available on all chips.
+ *    sa_set_chip_resources) to give the resources available on all chips.
  *    Dead chips should be given negative resource quantities.
  *  - state->num_movable_vertices should be set to indicate how many of the
  *    num_vertices in the system can be moved.
@@ -231,6 +214,36 @@ void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y,
  * @param vertex The vertex to add to the net.
  */
 void sa_add_vertex_to_net(const sa_state_t *state, sa_net_t *net, sa_vertex_t *vertex);
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Accessor utillty functions
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Get a pointer to the resource array for the given chip.
+ */
+int *sa_get_chip_resources_ptr(sa_state_t *state, size_t x, size_t y);
+
+/**
+ * Get the quantity of a resource available on a given chip.
+ */
+int sa_get_chip_resources(sa_state_t *state, size_t x, size_t y, size_t resource);
+
+/**
+ * Set the quantity of a resource available on a given chip.
+ */
+void sa_set_chip_resources(sa_state_t *state, size_t x, size_t y, size_t resource, int value);
+
+/**
+ * Get the head of the linked list of vertices on the specified chip.
+ */
+sa_vertex_t *sa_get_chip_vertex(sa_state_t *state, size_t x, size_t y);
+
+/**
+ * Set the head of the linked list of vertices on the specified chip.
+ */
+void sa_set_chip_vertex(sa_state_t *state, size_t x, size_t y, sa_vertex_t *vertex);
 
 
 ////////////////////////////////////////////////////////////////////////////////

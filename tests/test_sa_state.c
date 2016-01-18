@@ -78,7 +78,7 @@ START_TEST (test_constructors)
 					seen[i] = 0;
 				
 				// Iterate through the linked list of vertices on the chip
-				sa_vertex_t *cur_v = SA_STATE_CHIP_VERTICES(s, x, y);
+				sa_vertex_t *cur_v = sa_get_chip_vertex(s, x, y);
 				while (cur_v) {
 					// Check to see if this vertex is supposed to be here...
 					bool known_vertex = false;
@@ -99,7 +99,7 @@ START_TEST (test_constructors)
 					ck_assert(seen[i]);
 			} else {
 				// Chip should be empty
-				ck_assert(!SA_STATE_CHIP_VERTICES(s, x, y));
+				ck_assert(!sa_get_chip_vertex(s, x, y));
 			}
 		}
 	}

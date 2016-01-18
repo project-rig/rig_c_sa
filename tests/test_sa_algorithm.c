@@ -231,8 +231,8 @@ START_TEST (test_step_no_free_chips)
 	sa_add_vertex_to_chip(s, v, 0, 0, true);
 	
 	// Swapping is made impoossible because no chip has room
-	SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) = 0;
-	SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) = 0;
+	sa_set_chip_resources(s, 0, 0, 0, 0);
+	sa_set_chip_resources(s, 1, 0, 0, 0);
 	
 	// Since a random element is involved, should run multiple times...
 	for (size_t i = 0; i < 10; i++) {
@@ -242,12 +242,12 @@ START_TEST (test_step_no_free_chips)
 		ck_assert(cost == 0.0);
 		
 		// Vertex should be exactly where it was...
-		ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == v);
+		ck_assert(sa_get_chip_vertex(s, 0, 0) == v);
 		ck_assert(v->next == NULL);
 		ck_assert(v->x == 0);
 		ck_assert(v->y == 0);
-		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 0);
-		ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 0);
+		ck_assert(sa_get_chip_resources(s, 0, 0, 0) == 0);
+		ck_assert(sa_get_chip_resources(s, 1, 0, 0) == 0);
 	}
 	
 	sa_free(s);
@@ -275,8 +275,8 @@ START_TEST (test_step_not_enough_space_on_original_chip)
 	
 	// Swapping is made impoossible because the first chip cannot fit a vertex
 	// with "2" resources.
-	SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) = 0;
-	SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) = 0;
+	sa_set_chip_resources(s, 0, 0, 0, 0);
+	sa_set_chip_resources(s, 1, 0, 0, 0);
 	
 	// Since a random element is involved, should run multiple times...
 	for (size_t i = 0; i < 10; i++) {
@@ -286,16 +286,16 @@ START_TEST (test_step_not_enough_space_on_original_chip)
 		ck_assert(cost == 0.0);
 		
 		// Vertices should be exactly where they were...
-		ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == v0);
-		ck_assert(SA_STATE_CHIP_VERTICES(s, 1, 0) == v1);
+		ck_assert(sa_get_chip_vertex(s, 0, 0) == v0);
+		ck_assert(sa_get_chip_vertex(s, 1, 0) == v1);
 		ck_assert(v0->next == NULL);
 		ck_assert(v1->next == NULL);
 		ck_assert(v0->x == 0);
 		ck_assert(v0->y == 0);
 		ck_assert(v1->x == 1);
 		ck_assert(v1->y == 0);
-		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 0);
-		ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 0);
+		ck_assert(sa_get_chip_resources(s, 0, 0, 0) == 0);
+		ck_assert(sa_get_chip_resources(s, 1, 0, 0) == 0);
 	}
 	
 	sa_free(s);
@@ -330,8 +330,8 @@ START_TEST (test_step_bad_cost)
 	sa_add_vertex_to_net(s, n, v1);
 	
 	// Swapping should be possible
-	SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) = 0;
-	SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) = 1;
+	sa_set_chip_resources(s, 0, 0, 0, 0);
+	sa_set_chip_resources(s, 1, 0, 0, 1);
 	
 	// Since a random element is involved, should run multiple times...
 	size_t num_swapped = 0;
@@ -347,16 +347,16 @@ START_TEST (test_step_bad_cost)
 			ck_assert(cost == 1.0);
 			
 			// Vertices should have moved
-			ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == NULL);
-			ck_assert(SA_STATE_CHIP_VERTICES(s, 1, 0) == v0);
+			ck_assert(sa_get_chip_vertex(s, 0, 0) == NULL);
+			ck_assert(sa_get_chip_vertex(s, 1, 0) == v0);
 			ck_assert(v0->next == NULL);
 			ck_assert(v1->next == NULL);
 			ck_assert(v0->x == 1);
 			ck_assert(v0->y == 0);
 			ck_assert(v1->x == 0);
 			ck_assert(v1->y == 0);
-			ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 1);
-			ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 0);
+			ck_assert(sa_get_chip_resources(s, 0, 0, 0) == 1);
+			ck_assert(sa_get_chip_resources(s, 1, 0, 0) == 0);
 			
 			// Put the vertex back for the next trail
 			sa_remove_vertex_from_chip(s, v0);
@@ -366,16 +366,16 @@ START_TEST (test_step_bad_cost)
 			
 			// Vertices should be exactly where they were...
 			ck_assert_msg(cost == 0.0, "%f == %f", cost, 0.0);
-			ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == v0);
-			ck_assert(SA_STATE_CHIP_VERTICES(s, 1, 0) == NULL);
+			ck_assert(sa_get_chip_vertex(s, 0, 0) == v0);
+			ck_assert(sa_get_chip_vertex(s, 1, 0) == NULL);
 			ck_assert(v0->next == NULL);
 			ck_assert(v1->next == NULL);
 			ck_assert(v0->x == 0);
 			ck_assert(v0->y == 0);
 			ck_assert(v1->x == 0);
 			ck_assert(v1->y == 0);
-			ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 0);
-			ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 1);
+			ck_assert(sa_get_chip_resources(s, 0, 0, 0) == 0);
+			ck_assert(sa_get_chip_resources(s, 1, 0, 0) == 1);
 		}
 	}
 	
@@ -405,7 +405,7 @@ START_TEST (test_run_steps)
 	s->has_wrap_around_links = false;
 	for (size_t x = 0; x < 4; x++)
 		for (size_t y = 0; y < 4; y++)
-			SA_STATE_CHIP_RESOURCES(s, x, y, 0) = 1;
+			sa_set_chip_resources(s, x, y, 0, 1);
 	
 	sa_vertex_t *v0 = sa_new_vertex(s, 1); ck_assert(v0); s->vertices[0] = v0;
 	sa_vertex_t *v1 = sa_new_vertex(s, 1); ck_assert(v1); s->vertices[1] = v1;

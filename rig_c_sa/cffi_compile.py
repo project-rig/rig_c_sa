@@ -18,13 +18,6 @@ ffi.set_source(
         #include <stdlib.h>
         #include "sa.h"
         
-        // Function-wrapper around resource setting macros
-        void sa_set_chip_resource(sa_state_t *state, size_t x, size_t y,
-                                  size_t resource, int value) {
-            SA_STATE_CHIP_RESOURCES(state, x, y, resource) = value;
-        }
-        
-        
         double sa_get_total_cost(sa_state_t *state) {
             double total = 0.0;
             for (size_t i = 0; i < state->num_nets; i++)
@@ -73,14 +66,12 @@ ffi.cdef("""
     // Initialisation functions
     void sa_add_vertex_to_net(const sa_state_t *state, sa_net_t *net, sa_vertex_t *vertex);
     void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y, bool movable);
+    void sa_set_chip_resources(sa_state_t *state, size_t x, size_t y,
+                               size_t resource, int value);
     
     // Algorithm kernel
     void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, double temperature,
                       size_t *num_accepted, double *cost_delta, double *cost_delta_sd);
-    
-    // Macro wrapper (defined in set_source above)
-    void sa_set_chip_resource(sa_state_t *state, size_t x, size_t y,
-                              size_t resource, int value);
     
     // Utility function
     double sa_get_total_cost(sa_state_t *state);

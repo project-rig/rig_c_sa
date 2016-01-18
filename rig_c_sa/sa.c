@@ -60,9 +60,9 @@ sa_state_t *sa_new(size_t width, size_t height, size_t num_resource_types,
 	for (size_t x = 0; x < state->width; x++) {
 		for (size_t y = 0; y < state->height; y++) {
 			for (size_t r = 0; r < state->num_resource_types; r++) {
-				SA_STATE_CHIP_RESOURCES(state, x, y, r) = -1;
+				sa_set_chip_resources(state, x, y, r,  -1);
 			}
-			SA_STATE_CHIP_VERTICES(state, x, y) = NULL;
+			sa_set_chip_vertex(state, x, y, NULL);
 		}
 	}
 	
@@ -176,6 +176,29 @@ void sa_free_net(sa_net_t *net) {
 // General data structure manipulation functions
 ////////////////////////////////////////////////////////////////////////////////
 
+int *sa_get_chip_resources_ptr(sa_state_t *state, size_t x, size_t y) {
+	return state->chip_resources + (
+		(y * state->width * state->num_resource_types)
+		+ (x * state->num_resource_types)
+	);
+}
+
+int sa_get_chip_resources(sa_state_t *state, size_t x, size_t y, size_t resource) {
+	return sa_get_chip_resources_ptr(state, x, y)[resource];
+}
+
+void sa_set_chip_resources(sa_state_t *state, size_t x, size_t y, size_t resource, int value) {
+	sa_get_chip_resources_ptr(state, x, y)[resource] = value;
+}
+
+sa_vertex_t *sa_get_chip_vertex(sa_state_t *state, size_t x, size_t y) {
+	return state->chip_vertices[(y * state->width) + x];
+}
+
+void sa_set_chip_vertex(sa_state_t *state, size_t x, size_t y, sa_vertex_t *vertex) {
+	 state->chip_vertices[(y * state->width) + x] = vertex;
+}
+
 void sa_subtract_resources(const sa_state_t *state, int *a, const int *b) {
 	for (size_t i = 0; i < state->num_resource_types; i++)
 		a[i] -= b[i];
@@ -200,13 +223,13 @@ void sa_add_vertex_to_chip(sa_state_t *state, sa_vertex_t *vertex, int x, int y,
 	// Insert the vertex into the LL of movable vertices on the target chip
 	if (movable) {
 		assert(vertex->next == NULL);
-		vertex->next = SA_STATE_CHIP_VERTICES(state, x, y);
-		SA_STATE_CHIP_VERTICES(state, x, y) = vertex;
+		vertex->next = sa_get_chip_vertex(state, x, y);
+		sa_set_chip_vertex(state, x, y, vertex);
 	}
 	
 	// Subtract the resources consumed from those available on the chip
 	sa_subtract_resources(state,
-	                      &SA_STATE_CHIP_RESOURCES(state, x, y, 0),
+	                      sa_get_chip_resources_ptr(state, x, y),
 	                      vertex->vertex_resources);
 }
 
@@ -224,7 +247,7 @@ void sa_add_vertices_to_chip(sa_state_t *state, sa_vertex_t *vertices, int x, in
 
 bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, int x, int y) {
 	int *resources_available = alloca(sizeof(int) * state->num_resource_types);
-	memcpy(resources_available, &SA_STATE_CHIP_RESOURCES(state, x, y, 0),
+	memcpy(resources_available, sa_get_chip_resources_ptr(state, x, y),
 	       sizeof(int) * state->num_resource_types);
 	
 	sa_vertex_t *v = vertices;
@@ -247,11 +270,11 @@ bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, in
 	if (sa_positive_resources(state, resources_available)) {
 		// The vertices fit, insert them
 		if (vertices) {
-			v->next = SA_STATE_CHIP_VERTICES(state, x, y);
-			SA_STATE_CHIP_VERTICES(state, x, y) = vertices;
+			v->next = sa_get_chip_vertex(state, x, y);
+			sa_set_chip_vertex(state, x, y, vertices);
 			
 			// And update the resource consumption
-			memcpy(&SA_STATE_CHIP_RESOURCES(state, x, y, 0), resources_available,
+			memcpy(sa_get_chip_resources_ptr(state, x, y), resources_available,
 			       sizeof(int) * state->num_resource_types);
 		}
 		return true;
@@ -262,7 +285,8 @@ bool sa_add_vertices_to_chip_if_fit(sa_state_t *state, sa_vertex_t *vertices, in
 }
 
 void sa_remove_vertex_from_chip(sa_state_t *state, sa_vertex_t *vertex) {
-	sa_vertex_t **next_ptr = &SA_STATE_CHIP_VERTICES(state, vertex->x, vertex->y);
+	sa_vertex_t *head = sa_get_chip_vertex(state, vertex->x, vertex->y);
+	sa_vertex_t **next_ptr = &head;
 	
 	// Search through the linked-list for the vertex to remove
 	while (*next_ptr != vertex) {
@@ -274,9 +298,11 @@ void sa_remove_vertex_from_chip(sa_state_t *state, sa_vertex_t *vertex) {
 	*next_ptr = vertex->next;
 	vertex->next = NULL;
 	
+	sa_set_chip_vertex(state, vertex->x, vertex->y, head);
+	
 	// Account for the resources now freed up
 	sa_add_resources(state,
-	                 &SA_STATE_CHIP_RESOURCES(state, vertex->x, vertex->y, 0),
+	                 sa_get_chip_resources_ptr(state, vertex->x, vertex->y),
 	                 vertex->vertex_resources);
 }
 
@@ -370,7 +396,7 @@ bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
 	
 	// Create a local copy of the resource requirement on the stack
 	int *resources_available = alloca(sizeof(int) * state->num_resource_types);
-	memcpy(resources_available, &SA_STATE_CHIP_RESOURCES(state, x, y, 0),
+	memcpy(resources_available, sa_get_chip_resources_ptr(state, x, y),
 	       sizeof(int) * state->num_resource_types);
 	
 	// See if the resources already available on the chip are sufficient alone
@@ -379,12 +405,12 @@ bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
 	// Keep removing vertices until all the requred resources have been found.
 	*removed_vertices = NULL;
 	while (!sa_positive_resources(state, resources_available)) {
-		if (SA_STATE_CHIP_VERTICES(state, x, y) != NULL) {
+		if (sa_get_chip_vertex(state, x, y) != NULL) {
 			// Remove a vertex
-			sa_vertex_t *new_chip_head = SA_STATE_CHIP_VERTICES(state, x, y)->next;
-			SA_STATE_CHIP_VERTICES(state, x, y)->next = *removed_vertices;
-			*removed_vertices = SA_STATE_CHIP_VERTICES(state, x, y);
-			SA_STATE_CHIP_VERTICES(state, x, y) = new_chip_head;
+			sa_vertex_t *new_chip_head = sa_get_chip_vertex(state, x, y)->next;
+			sa_get_chip_vertex(state, x, y)->next = *removed_vertices;
+			*removed_vertices = sa_get_chip_vertex(state, x, y);
+			sa_set_chip_vertex(state, x, y, new_chip_head);
 			
 			sa_add_resources(state,
 			                 resources_available,
@@ -392,7 +418,7 @@ bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
 		} else {
 			// Ran out of vertices to remove! Put them all back then report a
 			// failure.
-			SA_STATE_CHIP_VERTICES(state, x, y) = *removed_vertices;
+			sa_set_chip_vertex(state, x, y, *removed_vertices);
 			*removed_vertices = NULL;
 			return false;
 		}
@@ -401,7 +427,7 @@ bool sa_make_room_on_chip(sa_state_t *state, int x, int y,
 	// Update the resource counts for the chip if a vertex was removed
 	if (*removed_vertices) {
 		sa_add_resources(state, resources_available, resources_required);
-		memcpy(&SA_STATE_CHIP_RESOURCES(state, x, y, 0), resources_available,
+		memcpy(sa_get_chip_resources_ptr(state, x, y), resources_available,
 		       sizeof(int) * state->num_resource_types);
 	}
 	
