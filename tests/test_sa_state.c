@@ -27,17 +27,17 @@ START_TEST (test_constructors)
 	
 	// Check basic values stored in the datastructure (allocated structures will
 	// be checked later)
-	ck_assert_int_eq(s->width, w);
-	ck_assert_int_eq(s->height, h);
+	ck_assert(s->width == w);
+	ck_assert(s->height == h);
 	ck_assert(!s->has_wrap_around_links);
-	ck_assert_int_eq(s->num_resource_types, nr);
-	ck_assert_int_eq(s->num_nets, nn);
-	ck_assert_int_eq(s->num_vertices, nv);
+	ck_assert(s->num_resource_types == nr);
+	ck_assert(s->num_nets == nn);
+	ck_assert(s->num_vertices == nv);
 	
 	// Check the required memory has been allocated (Valgrind should check these
 	// accesses fall in-range)
 	for (size_t i = 0; i < w * h * nr; i++)
-		ck_assert_int_eq(s->chip_resources[i], -1);
+		ck_assert(s->chip_resources[i] == -1);
 	for (size_t i = 0; i < w * h; i++)
 		ck_assert(!s->chip_vertices[i]);
 	for (size_t i = 0; i < nn; i++)
@@ -51,7 +51,7 @@ START_TEST (test_constructors)
 	for (size_t i = 0; i < nv; i++) {
 		sa_vertex_t *v = sa_new_vertex(s, i + 1);
 		ck_assert(v);
-		ck_assert_int_eq(v->num_nets, i + 1);
+		ck_assert(v->num_nets == i + 1);
 		s->vertices[i] = v;
 		
 		// The right amount of memory for resources should be allocated (Valgrind
@@ -63,8 +63,8 @@ START_TEST (test_constructors)
 		// updated accordingly.
 		bool movable = i != (nv - 1);
 		sa_add_vertex_to_chip(s, v, 0, 1, movable);
-		ck_assert_int_eq(v->x, 0);
-		ck_assert_int_eq(v->y, 1);
+		ck_assert(v->x == 0);
+		ck_assert(v->y == 1);
 	}
 	
 	// Make sure that the vertices are on the right chip according to the main
@@ -110,7 +110,7 @@ START_TEST (test_constructors)
 		ck_assert(n);
 		s->nets[i] = n;
 		
-		ck_assert_int_eq(n->num_vertices, nv - i);
+		ck_assert(n->num_vertices == nv - i);
 		n->weight = i + 1.0;
 		
 		// Attempt to add connections between involved vertices

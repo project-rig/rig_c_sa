@@ -244,10 +244,10 @@ START_TEST (test_step_no_free_chips)
 		// Vertex should be exactly where it was...
 		ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == v);
 		ck_assert(v->next == NULL);
-		ck_assert_int_eq(v->x, 0);
-		ck_assert_int_eq(v->y, 0);
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0), 0);
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0), 0);
+		ck_assert(v->x == 0);
+		ck_assert(v->y == 0);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 0);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 0);
 	}
 	
 	sa_free(s);
@@ -290,12 +290,12 @@ START_TEST (test_step_not_enough_space_on_original_chip)
 		ck_assert(SA_STATE_CHIP_VERTICES(s, 1, 0) == v1);
 		ck_assert(v0->next == NULL);
 		ck_assert(v1->next == NULL);
-		ck_assert_int_eq(v0->x, 0);
-		ck_assert_int_eq(v0->y, 0);
-		ck_assert_int_eq(v1->x, 1);
-		ck_assert_int_eq(v1->y, 0);
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0), 0);
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0), 0);
+		ck_assert(v0->x == 0);
+		ck_assert(v0->y == 0);
+		ck_assert(v1->x == 1);
+		ck_assert(v1->y == 0);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 0);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 0);
 	}
 	
 	sa_free(s);
@@ -351,12 +351,12 @@ START_TEST (test_step_bad_cost)
 			ck_assert(SA_STATE_CHIP_VERTICES(s, 1, 0) == v0);
 			ck_assert(v0->next == NULL);
 			ck_assert(v1->next == NULL);
-			ck_assert_int_eq(v0->x, 1);
-			ck_assert_int_eq(v0->y, 0);
-			ck_assert_int_eq(v1->x, 0);
-			ck_assert_int_eq(v1->y, 0);
-			ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0), 1);
-			ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0), 0);
+			ck_assert(v0->x == 1);
+			ck_assert(v0->y == 0);
+			ck_assert(v1->x == 0);
+			ck_assert(v1->y == 0);
+			ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 1);
+			ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 0);
 			
 			// Put the vertex back for the next trail
 			sa_remove_vertex_from_chip(s, v0);
@@ -370,18 +370,18 @@ START_TEST (test_step_bad_cost)
 			ck_assert(SA_STATE_CHIP_VERTICES(s, 1, 0) == NULL);
 			ck_assert(v0->next == NULL);
 			ck_assert(v1->next == NULL);
-			ck_assert_int_eq(v0->x, 0);
-			ck_assert_int_eq(v0->y, 0);
-			ck_assert_int_eq(v1->x, 0);
-			ck_assert_int_eq(v1->y, 0);
-			ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0), 0);
-			ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0), 1);
+			ck_assert(v0->x == 0);
+			ck_assert(v0->y == 0);
+			ck_assert(v1->x == 0);
+			ck_assert(v1->y == 0);
+			ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, 0) == 0);
+			ck_assert(SA_STATE_CHIP_RESOURCES(s, 1, 0, 0) == 1);
 		}
 	}
 	
 	// Should have randomly swapped or not swapped a few times
-	ck_assert_int_gt(num_swapped, 0);
-	ck_assert_int_gt(num_not_swapped, 0);
+	ck_assert(num_swapped > 0);
+	ck_assert(num_not_swapped > 0);
 	
 	sa_free(s);
 }
@@ -429,7 +429,7 @@ START_TEST (test_run_steps)
 	
 	// Majority of swaps should be accepted (only those which try to place the
 	// two vertices on the same chip will fail).
-	ck_assert_int_gt(num_accepted, 750);
+	ck_assert(num_accepted > 750);
 	
 	// The cost deviation should be notable
 	ck_assert(cost_delta_sd > 1.0);
@@ -445,7 +445,7 @@ START_TEST (test_run_steps)
 	
 	// Many swaps should be rejected since once the two vertices are close
 	// together they should not be moved apart.
-	ck_assert_int_lt(num_accepted, 250);
+	ck_assert(num_accepted < 250);
 	
 	// The cost deviation should be small since once close they should stay close
 	ck_assert(cost_delta_sd < 1.0);

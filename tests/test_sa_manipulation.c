@@ -62,13 +62,13 @@ START_TEST (test_subtract_resources)
 	
 	// Make sure answer is correct and b is unmodified
 	for (size_t i = 0; i < nr; i++) {
-		ck_assert_int_eq(a[i], 1);
-		ck_assert_int_eq(b[i], i);
+		ck_assert(a[i] == 1);
+		ck_assert(b[i] == i);
 	}
 	
 	// Make sure the extra values are untouched
-	ck_assert_int_eq(a[nr], nr + 1);
-	ck_assert_int_eq(b[nr], nr);
+	ck_assert(a[nr] == nr + 1);
+	ck_assert(b[nr] == nr);
 	
 	free(a);
 	free(b);
@@ -96,13 +96,13 @@ START_TEST (test_add_resources)
 	
 	// Make sure answer is correct and b is unmodified
 	for (size_t i = 0; i < nr; i++) {
-		ck_assert_int_eq(a[i], (i * 2) + 1);
-		ck_assert_int_eq(b[i], i);
+		ck_assert(a[i] == (i * 2) + 1);
+		ck_assert(b[i] == i);
 	}
 	
 	// Make sure the extra values are untouched
-	ck_assert_int_eq(a[nr], nr + 1);
-	ck_assert_int_eq(b[nr], nr);
+	ck_assert(a[nr] == nr + 1);
+	ck_assert(b[nr] == nr);
 	
 	free(a);
 	free(b);
@@ -176,7 +176,7 @@ START_TEST (test_add_vertices_to_chip)
 	
 	// Make sure the resources remaining are correct
 	for (size_t i = 0; i < nr; i++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), 1);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == 1);
 }
 END_TEST
 
@@ -207,7 +207,7 @@ START_TEST (test_add_vertices_to_chip_if_fit)
 	ck_assert(!sa_add_vertices_to_chip_if_fit(s, s->vertices[0], 0, 1));
 	ck_assert(!SA_STATE_CHIP_VERTICES(s, 0, 1));
 	for (size_t i = 0; i < nr; i++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), nv - 1);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == nv - 1);
 	
 	// Now ensure suffucuent resources are available
 	for (size_t i = 0; i < nr; i++)
@@ -217,7 +217,7 @@ START_TEST (test_add_vertices_to_chip_if_fit)
 	ck_assert(sa_add_vertices_to_chip_if_fit(s, s->vertices[0], 0, 1));
 	ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 1) == s->vertices[0]);
 	for (size_t i = 0; i < nr; i++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), 1);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == 1);
 }
 END_TEST
 
@@ -249,21 +249,21 @@ START_TEST (test_remove_vertices_from_chip)
 	sa_remove_vertex_from_chip(s, s->vertices[1]);
 	expected_resources++;
 	for (size_t i = 0; i < nr; i++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), expected_resources);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == expected_resources);
 	
 	// Remove the first vertex added (which will be the first or last vertex in
 	// the linked list)
 	sa_remove_vertex_from_chip(s, s->vertices[0]);
 	expected_resources++;
 	for (size_t i = 0; i < nr; i++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), expected_resources);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == expected_resources);
 	
 	// Remove the last vertex added (which will be the first or last vertex in
 	// the linked list)
 	sa_remove_vertex_from_chip(s, s->vertices[nv - 1]);
 	expected_resources++;
 	for (size_t i = 0; i < nr; i++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), expected_resources);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == expected_resources);
 	
 	// Remove all other vertices (to make sure we can remove the last vertex from
 	// a chip.
@@ -271,12 +271,12 @@ START_TEST (test_remove_vertices_from_chip)
 		sa_remove_vertex_from_chip(s, SA_STATE_CHIP_VERTICES(s, 0, 1));
 		expected_resources++;
 		for (size_t i = 0; i < nr; i++)
-			ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 1, i), expected_resources);
+			ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 1, i) == expected_resources);
 	}
 	
 	// Once all vertices are removed the resources remaining on the chip should
 	// match the quantity there at the beginning.
-	ck_assert_int_eq(expected_resources, nv + 1);
+	ck_assert(expected_resources == nv + 1);
 }
 END_TEST
 
@@ -351,10 +351,10 @@ START_TEST (test_get_random_nearby_chip)
 			sa_get_random_nearby_chip(s, ox, oy, distance_limit, &x, &y);
 			
 			// Sanity check: In range
-			ck_assert_int_ge(x, 0);
-			ck_assert_int_lt(x, w);
-			ck_assert_int_ge(y, 0);
-			ck_assert_int_lt(y, h);
+			ck_assert(x >= 0);
+			ck_assert(x < w);
+			ck_assert(y >= 0);
+			ck_assert(y < h);
 			
 			// Sanity check: Not the original chip
 			ck_assert(x != ox || y != oy);
@@ -546,7 +546,7 @@ START_TEST (test_make_room_on_chip)
 	ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == s->vertices[nv-2]);
 	ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0)->next == s->vertices[nv-3]);
 	for (size_t r = 0; r < nr; r++) {
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, r), (r == (nv - 1)));
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, r) == (r == (nv - 1)));
 	}
 	
 	// Put the vertex back again...
@@ -568,7 +568,7 @@ START_TEST (test_make_room_on_chip)
 	ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0) == s->vertices[nv-3]);
 	ck_assert(SA_STATE_CHIP_VERTICES(s, 0, 0)->next == s->vertices[nv-4]);
 	for (size_t r = 0; r < nr; r++) {
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, r), (r >= (nv - 2)));
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, r) == (r >= (nv - 2)));
 	}
 	
 	// Put the vertices back again...
@@ -592,11 +592,11 @@ START_TEST (test_make_room_on_chip)
 			v = v->next;
 			i++;
 		}
-		ck_assert_int_eq(i, nv);
+		ck_assert(i == nv);
 	}
 	ck_assert(!SA_STATE_CHIP_VERTICES(s, 0, 0));
 	for (size_t r = 0; r < nr; r++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, r), 1);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, r) == 1);
 	
 	// Put the vertices back again...
 	sa_add_vertices_to_chip(s, removed_vertices, 0, 0);
@@ -619,10 +619,10 @@ START_TEST (test_make_room_on_chip)
 			v = v->next;
 			i++;
 		}
-		ck_assert_int_eq(i, nv);
+		ck_assert(i == nv);
 	}
 	for (size_t r = 0; r < nr; r++)
-		ck_assert_int_eq(SA_STATE_CHIP_RESOURCES(s, 0, 0, r), 0);
+		ck_assert(SA_STATE_CHIP_RESOURCES(s, 0, 0, r) == 0);
 	
 	sa_free(s);
 }
