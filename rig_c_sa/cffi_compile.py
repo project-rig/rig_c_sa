@@ -13,7 +13,7 @@ ffi = FFI()
 source_dir = os.path.dirname(__file__)
 
 ffi.set_source(
-    "_sa",
+    "_rig_c_sa",
     """
         #include <stdlib.h>
         #include "sa.h"

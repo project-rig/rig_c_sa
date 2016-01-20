@@ -619,6 +619,7 @@ sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, dou
 	                          va->vertex_resources,
 	                          &vb)) {
 		*cost = 0.0;
+		printf("cant fit a in b\n");
 		return sa_false;
 	}
 	
@@ -632,7 +633,7 @@ sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, dou
 	// is and how high the temperature is.
 	*cost = sa_get_swap_cost(state, ax, ay, va, bx, by, vb);
 	swap_accepted = ((*cost) <= 0.0)
-	                          || ((double)rand() / RAND_MAX) < exp(-(*cost) / temperature);
+	                 || ((double)rand() / RAND_MAX) < exp(-(*cost) / temperature);
 	
 	// Attempt to fit the vertices removed from chip B into the space left behind
 	// after removing va from chip A. If not enough space (or if the swap was not

@@ -2,9 +2,12 @@ import io
 import re
 from setuptools import setup, find_packages
 
+with open("rig_c_sa/version.py", "r") as f:
+    exec(f.read())
+
 setup(
     name="rig_c_sa",
-    version="0.3.0",
+    version=__version__,
     packages=find_packages(),
     
     # Files required by CFFI wrapper
