@@ -11,6 +11,8 @@
 
 #include <math.h>
 
+#include "usort/u1_sort.c"
+
 #include "sa.h"
 
 // Windows support for alloca...
@@ -459,6 +461,17 @@ int compar(const void *a, const void *b) {
 	return *((int *)a) - *((int *)b);
 }
 
+void sort(sa_state_t *state, int *array, size_t length) {
+  if (state->width <= 256 && state ->height <= 256) {
+    // If dimensions are always 8 bits or less (true for all real SpiNNaker
+    // machines), we use a fast sort algorithm.
+    u1_sort(array, length);
+  } else {
+    // ...if something odd is being done, we use a bog-standard qsort.
+    qsort(array, length, sizeof(int), &compar);
+  }
+}
+
 double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 	size_t i;
 	int *xs, *ys;
@@ -495,8 +508,8 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 			ys[i] = net->vertices[i]->y;
 		}
 		
-		qsort(xs, net->num_vertices, sizeof(int), &compar);
-		qsort(ys, net->num_vertices, sizeof(int), &compar);
+		sort(state, xs, net->num_vertices);
+		sort(state, ys, net->num_vertices);
 		
 		// Find the largest gap in each
 		last_x = xs[net->num_vertices - 1] - (int)state->width;
@@ -619,7 +632,6 @@ sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, dou
 	                          va->vertex_resources,
 	                          &vb)) {
 		*cost = 0.0;
-		printf("cant fit a in b\n");
 		return sa_false;
 	}
 	
