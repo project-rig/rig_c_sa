@@ -1,0 +1,36 @@
+# We lightly misuse CircleCI as a service for building compiled Python wheels
+# for OS X. As a result, this script does not run any real tests but rather
+# checks that the code still compiles on OS X then dumps out a wheel as a build
+# artefact.
+
+dependencies:
+  override:
+    - pip install wheel
+
+test:
+  override:
+    # Just try compiling and importing the module (test suite is executed under
+    # Linux by TravisCI).
+    
+    # Python 2.7
+    - pyenv global 2.7
+    - python setup.py install
+    - python -c "import rig_c_sa"
+    - python setup.py bdist_wheel
+    
+    # Python 3.4
+    - pyenv global 3.4
+    - python setup.py install
+    - python -c "import rig_c_sa"
+    - python setup.py bdist_wheel
+    
+    # Python 3.5
+    - pyenv global 3.5
+    - python setup.py install
+    - python -c "import rig_c_sa"
+    - python setup.py bdist_wheel
+
+# Save the built wheels
+general:
+  artifacts:
+    - dist"
