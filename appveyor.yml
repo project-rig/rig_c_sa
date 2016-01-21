@@ -31,13 +31,13 @@ build: off
 test_script:
   # The test on windows is simply "can we compile and import the package?". The
   # test suite requires C99 and is executed on a Linux host in Travis CI.
-  - "build.cmd %PYTHON%\\python.exe setup.py install"
-  - "build.cmd %PYTHON%\\python.exe -m rig_c_sa"
+  - "win_build.cmd %PYTHON%\\python.exe setup.py install"
+  - "win_build.cmd %PYTHON%\\python.exe -m rig_c_sa"
 
 after_test:
   # Build a wheel for Windows.
   # The 'build.cmd' is required for 64-bit Python 3.4.
-  - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
+  - "win_build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
 
 artifacts:
   # bdist_wheel puts your built wheel in the dist directory
