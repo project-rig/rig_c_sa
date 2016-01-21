@@ -1,0 +1,44 @@
+# We lightly misuse AppVeyor as a service for building compiled Python wheels
+# for windows. As a result, this script does not run any real tests but rather
+# checks that the code still compiles under the Windows "C compiler" and then
+# dumps out a wheel as a build artefact.
+#
+# File based heavily on advice from
+# http://python-packaging-user-guide.readthedocs.org/en/latest/appveyor/
+
+environment:
+
+  # Build against 32- and 64-bit versions of the supported Python releases.
+  matrix:
+
+    # Python 2.7
+    - PYTHON: "C:\\Python27"
+    - PYTHON: "C:\\Python27-x64"
+    # Python 3.4
+    - PYTHON: "C:\\Python34"
+    - PYTHON: "C:\\Python34-x64"
+      DISTUTILS_USE_SDK: "1"
+    # Python 3.5
+    - PYTHON: "C:\\Python35"
+    - PYTHON: "C:\\Python35-x64"
+
+install:
+  # We need wheel installed to build wheels
+  - "%PYTHON%\\python.exe -m pip install wheel"
+
+build: off
+
+test_script:
+  # The test on windows is simply "can we compile and import the package?". The
+  # test suite requires C99 and is executed on a Linux host in Travis CI.
+  - "build.cmd %PYTHON%\\python.exe setup.py install"
+  - "build.cmd %PYTHON%\\python.exe -m rig_c_sa"
+
+after_test:
+  # Build a wheel for Windows.
+  # The 'build.cmd' is required for 64-bit Python 3.4.
+  - "build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
+
+artifacts:
+  # bdist_wheel puts your built wheel in the dist directory
+  - path: dist\*
