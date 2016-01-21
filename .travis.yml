@@ -1,48 +1,82 @@
+# This script instructs the Travis CI service to build rig_c_sa against
+# various versions of Python on both Linux and Mac OS X and also deploys binary
+# and source distributions of rig_c_sa to PyPI when testing a tag.
+#
+# Under Linux, the "check" based test suite is executed under Valgrind to check
+# for correct behaviour and lack of memory-leaks. This is not possible under
+# Mac OS at present due to difficulties installing test dependencies on Travis'
+# OS X image.
+#
+# On both Linux and OS X the module is compiled and checked for import-ability.
+#
+# If a Git tag is being tested, this is assumed to be for a new release of
+# rig_c_sa and so, after testing, a source distribution and "binary wheel"
+# containing the compiled code is created and then uploaded to PyPI. Since
+# binary wheels cannot currently be created for Linux, this process is only
+# carried out on OS X. Note that though all OS X tests will attempt to upload a
+# source distribution, only the first deployed will be kept. This is not a
+# problem since the source distribution is identical across all platforms.
+
+# Prevent Travis making any assumptions about what we want to do
 language: generic
 
+# When running under Linux use the container based build infrastructure
 sudo: false
 
+# Run against both Linux and OS X
 os:
   - linux
   - osx
 
 env:
-  global:
-    # PYPIPASSWORD=...
-    secure: "WQEAx6rliDGGDmHhsDBsGCR+nUf4CJFWSq+6+tx4F5Z3tOE5YBLoZ+jkJWuAB5841FwrHD0Cf8Ihoxfx/1tNDj8wBlDDNE+M1tL9izakPoJGLjK6B1iBLswG8Nv7jkl4EEZQniVhsQkdLLqiw/hYjnlhMUPd5vzHC9pJAwFwEIBvfQajigkp7ENj+D+9FI5OV534XuAuoiPN45G6IhDMrdDpDa4BGp/7w9FvSzOKjUHqAqNSYnkDiS//xciRwrGbXXhYmYkS4bWqCPBV5ZusmNC9Mnr1IfsFyVeuvumWr9Tifl4L3bH/NhGLJPrvYkg8KUo8AVabQquKcpPzDysW/3C9s3ihuKDQIUa0q2nvO7+Ya1tABeENj+v6FKbUIyQ1KsO2j7pI2Sm6rHa9hz0MVIrTR999+0/qIxP8UWpM1Z2mr3pLhc4ffh3AtxieBKP7NadjPaCRcD/pXLUf0pdDGwxN9bbTkH+yvkGpHbpUPZxLsvkqbjlq1R94mRaVYx/ARvHO2hXC2vp6NuGZSCVMaItuLYF3pKMYBHrLhUwYaTMKPWkg3/aybI5hNDRgZEIs7t+pSQ/vXlxsL7C6z4iJ0GxAlIRbj9jONd2DgEUylCUs4/G+h14PrGdwN38mpH8BXIdjb1KL9tsyITYL/9Dx7TwasZLMJyeAaumYxPxCnJ8="
-  
+  # Run against all supported versions of Python (this environment variable is
+  # used further down the fetch an appropriate Python interpreter).
   matrix:
     - PYVER=2.7
     - PYVER=3.4
     - PYVER=3.5
+  
+  # The (encrypted) password for the 'rigbots' PyPI account, used for
+  # deployment.
+  global:
+    # PYPIPASSWORD=...
+    secure: "WQEAx6rliDGGDmHhsDBsGCR+nUf4CJFWSq+6+tx4F5Z3tOE5YBLoZ+jkJWuAB5841FwrHD0Cf8Ihoxfx/1tNDj8wBlDDNE+M1tL9izakPoJGLjK6B1iBLswG8Nv7jkl4EEZQniVhsQkdLLqiw/hYjnlhMUPd5vzHC9pJAwFwEIBvfQajigkp7ENj+D+9FI5OV534XuAuoiPN45G6IhDMrdDpDa4BGp/7w9FvSzOKjUHqAqNSYnkDiS//xciRwrGbXXhYmYkS4bWqCPBV5ZusmNC9Mnr1IfsFyVeuvumWr9Tifl4L3bH/NhGLJPrvYkg8KUo8AVabQquKcpPzDysW/3C9s3ihuKDQIUa0q2nvO7+Ya1tABeENj+v6FKbUIyQ1KsO2j7pI2Sm6rHa9hz0MVIrTR999+0/qIxP8UWpM1Z2mr3pLhc4ffh3AtxieBKP7NadjPaCRcD/pXLUf0pdDGwxN9bbTkH+yvkGpHbpUPZxLsvkqbjlq1R94mRaVYx/ARvHO2hXC2vp6NuGZSCVMaItuLYF3pKMYBHrLhUwYaTMKPWkg3/aybI5hNDRgZEIs7t+pSQ/vXlxsL7C6z4iJ0GxAlIRbj9jONd2DgEUylCUs4/G+h14PrGdwN38mpH8BXIdjb1KL9tsyITYL/9Dx7TwasZLMJyeAaumYxPxCnJ8="
 
+# Install dependencies for running the test suite. Note that this is ignored on
+# OS X (where test suite doesn't run either).
 addons:
-  # For linux only
   apt:
     packages:
       - valgrind
       - check
       - libffi-dev
 
+# Setup the required Python version. Since Travis' (beta) OS X support does not
+# yet allow easy selection of Python versions we must manually fetch, install
+# and configure the Python versions we need. To make life simpler we also use
+# this approach under Linux.
 install:
-  # Used for installing specific versions of python (works on OS X too, hence
-  # not using Travis functionality)
+  # Install 'pyenv': a utility for downloading and switching between multiple
+  # Python interpreters on the same system.
   - git clone https://github.com/yyuu/pyenv.git ~/.pyenv
   - PYENV_ROOT="$HOME/.pyenv"
   - PATH="$PYENV_ROOT/bin:$PATH"
   - eval "$(pyenv init -)"
-  # Install appropriate python version using pyenv
+  # Install the latest release of the specified Python version using pyenv.
   - PYVER="$(pyenv install --list | grep -E "^\\s*$PYVER" | sort -n -t. -k3 | tail -n1)"
   - echo "Selected Python $PYVER"
   - pyenv install $PYVER
+  # Make the newly installed version the default "python" command.
   - pyenv global $PYVER
   - python --version
   # Install PIP
   - curl -O https://bootstrap.pypa.io/get-pip.py
   - python get-pip.py --user
 
+# Test rig_c_sa.
 script:
-  # Compile and run the test suite under linux only
+  # On Linux only: Compile and run the test suite under valgrind to check
+  # for functionality and memory leaks.
   - >
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then
       gcc -std=c99 -g \
@@ -55,20 +89,25 @@ script:
     else
       echo "Test suite disabled on OS X!";
     fi
-  # Make sure CFFI wrapper compiles...
+  # On Linux and OS X: Make sure CFFI wrapper compiles and the package can be
+  # imported into Python.
   - python setup.py install --user
   - python -c "import rig_c_sa"
 
+# Deploy to PyPI if a tagged release
 after_success:
+  # Specify account details for PyPI
   - echo "[distutils]"                                  > ~/.pypirc
   - echo "index-servers ="                             >> ~/.pypirc
   - echo "    pypi"                                    >> ~/.pypirc
   - echo "[pypi]"                                      >> ~/.pypirc
-  - echo "repository=https://testpypi.python.org/pypi" >> ~/.pypirc
+  - echo "repository=https://pypi.python.org/pypi" >> ~/.pypirc
   - echo "username=rigbots"                            >> ~/.pypirc
   - echo "password=$PYPIPASSWORD"                      >> ~/.pypirc
-  - cat ~/.pypirc
-  # Deploy OS X builds to PyPI for tagged releases
+  
+  # For OS X and tags only, build a Python source distribution and "binary
+  # wheel" and upload these to PyPI. Note that the source upload will only
+  # succeed the first time and will be skipped by twine in subsiquent attempts.
   - >
     if [ "$TRAVIS_OS_NAME" == "osx" ]; then
       if [ -n "$TRAVIS_TAG" ]; then
@@ -82,5 +121,6 @@ after_success:
       echo "Not deploying as not running on OS X";
     fi
 
+# No pestering!
 notifications:
   email: false

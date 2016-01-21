@@ -1,47 +1,77 @@
-# We lightly misuse AppVeyor as a service for building compiled Python wheels
-# for windows. As a result, this script does not run any real tests but rather
-# checks that the code still compiles under the Windows "C compiler" and then
-# dumps out a wheel as a build artefact.
+# This script instructs the AppVeyor CI service to build rig_c_sa against
+# various versions of Python on both 32- and 64-bit Linux. This process ensures
+# that the codebase compiles under Microsoft's "C" compiler and that Python can
+# import the result as a valid module. We do not run the test suite since this
+# requires C99, valgrind and the 'check' unit-testing framework which do not
+# work on Windows. These tests will be run by Travis CI when testing against
+# Linux.
 #
-# File based heavily on advice from
+# If a Git tag is being tested, this is assumed to be for a new release of
+# rig_c_sa and so, after testing, a "binary wheel" containing the compiled code
+# is created and then uploaded to PyPI for each version of Python and Windows.
+#
+# This file is initially based on examples in
 # http://python-packaging-user-guide.readthedocs.org/en/latest/appveyor/
 
 environment:
 
+  # The (encrypted) password for the 'rigbots' PyPI account, used for
+  # deployment.
   PYPIPASSWORD:
     secure: o5RqpBL+6iPfYTqQpoqfjbAoNGBl2Q8dDTnY0SZ6FsUQOIwba1Jd/1UQ8vZe71v2
 
-  # Build against 32- and 64-bit versions of the supported Python releases.
+  # Test against the various Python versions and 32- and 64-bit versions of
+  # Windows.
   matrix:
 
-    # Python 2.7
+    # Python 2.7, 32 bit
     - PYTHON: "C:\\Python27"
+    
+    # Python 2.7, 64 bit
     - PYTHON: "C:\\Python27-x64"
-    # Python 3.4
+    
+    # Python 3.4, 32 bit
     - PYTHON: "C:\\Python34"
+    
+    # Python 3.4, 64 bit (incl. workaround specific to that version on Windows)
     - PYTHON: "C:\\Python34-x64"
       DISTUTILS_USE_SDK: "1"
-    # Python 3.5
+    
+    # Python 3.5, 32 bit
     - PYTHON: "C:\\Python35"
+    
+    # Python 3.5, 64 bit
     - PYTHON: "C:\\Python35-x64"
 
+# Disable AppVeyor's attempts to automatically build the code
 build: off
 
+# Just attempt to build and import the module under Windows since the full
+# test suite cannot be run.
 test_script:
-  # The test on windows is simply "can we compile and import the package?". The
-  # test suite requires C99 and is executed on a Linux host in Travis CI.
   - "win_build.cmd %PYTHON%\\python.exe setup.py install"
   - "win_build.cmd %PYTHON%\\python.exe -c \"import rig_c_sa\""
 
+# Deploy to PyPI if a tagged release
 on_success:
+  # Specify account details for PyPI
   - echo [distutils]                                  > %USERPROFILE%\\.pypirc
   - echo index-servers =                             >> %USERPROFILE%\\.pypirc
   - echo     pypi                                    >> %USERPROFILE%\\.pypirc
   - echo [pypi]                                      >> %USERPROFILE%\\.pypirc
-  - echo repository=https://testpypi.python.org/pypi >> %USERPROFILE%\\.pypirc
+  - echo repository=https://pypi.python.org/pypi >> %USERPROFILE%\\.pypirc
   - echo username=rigbots                            >> %USERPROFILE%\\.pypirc
   - echo password=%PYPIPASSWORD%                     >> %USERPROFILE%\\.pypirc
+  
+  # Workaround required to ensure setup.py finds the .pypirc under Windows
   - set HOME=%USERPROFILE%
+  
+  # Install wheel-building support
   - "win_build.cmd %PYTHON%\\python.exe -m pip install wheel"
-  - if "%APPVEYOR_REPO_TAG%"=="true" ( win_build.cmd %PYTHON%\\python.exe setup.py bdist_wheel upload -r pypi ) else ( echo "Not deploying because not a tagged commit." )
+  
+  # Deploy a wheel (only actually do this for tags). NB That breaking this line
+  # with Unix line-endings causes the windows command interpreter to barf so
+  # this is given as one-line to make this script less fragile when edited on
+  # other OSes.
+  - if "%APPVEYOR_REPO_TAG%"=="true" ( win_build.cmd %PYTHON%\\python.exe setup.py bdist_wheel upload ) else ( echo "Not deploying because not a tagged commit." )
 
