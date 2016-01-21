@@ -1,17 +1,52 @@
+language: generic
+
 sudo: false
-language: c
+
+os:
+  - linux
+  - osx
+
+env:
+  - PYVER=2.7
+  - PYVER=3.4
+  - PYVER=3.5
+
 addons:
+  # For linux only
   apt:
     packages:
       - valgrind
       - check
       - libffi-dev
+
+install:
+  # Used for installing specific versions of python (works on OS X too, hence
+  # not using Travis functionality)
+  - git clone https://github.com/yyuu/pyenv.git ~/.pyenv
+  - PYENV_ROOT="$HOME/.pyenv"
+  - PATH="$PYENV_ROOT/bin:$PATH"
+  - eval "$(pyenv init -)"
+  # Install appropriate python version using pyenv
+  - PYVER="$(pyenv install --list | grep -E "^\\s*$PYVER" | sort -n -t. -k2 | tail -n1)"
+  - echo "Selected Python $PYVER"
+  - pyenv install $PYVER
+  - pyenv global $PYVER
+  - python --version
+  # Install PIP
+  - curl -O https://bootstrap.pypa.io/get-pip.py
+  - python get-pip.py --user
+
 script:
-      # Compile the test suite
-      - $CC -std=c99 -g -Irig_c_sa -o run_tests tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check) 
-      # Make sure test suite passes without leaking memory
-      - valgrind -q --leak-check=full ./run_tests
-      # Make sure CFFI wrapper compiles
-      - python setup.py install --user
+  # Compile and run the test suite under linux only
+  - >
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      gcc -std=c99 -g -Irig_c_sa -o run_tests tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check) && \
+      valgrind -q --leak-check=full ./run_tests
+    else
+      echo "Test suite disabled on OS X!";
+    fi
+  # Make sure CFFI wrapper compiles
+  - python setup.py install --user
+
 notifications:
         email: false

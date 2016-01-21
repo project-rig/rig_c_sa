@@ -2,7 +2,8 @@
 ===========================================================================
 
 [![PyPi version](https://img.shields.io/pypi/v/rig_c_sa.svg?style=flat)](https://pypi.python.org/pypi/rig_c_sa)
-[![Build status](https://travis-ci.org/project-rig/rig_c_sa.svg?branch=master)](https://travis-ci.org/project-rig/rig_c_sa)
+[![Linux build and test status](https://travis-ci.org/project-rig/rig_c_sa.svg?branch=master)](https://travis-ci.org/project-rig/rig_c_sa)
+[![Windows build status](https://ci.appveyor.com/api/projects/status/apl31daxqh2594kj/branch/master?svg=true)](https://ci.appveyor.com/project/mossblaser/rig-c-sa/branch/master)
 
 This Python package contains an efficient set of datastructures and
 manipulation functions for implementing a kernel for
