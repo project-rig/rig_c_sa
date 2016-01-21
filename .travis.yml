@@ -7,9 +7,14 @@ os:
   - osx
 
 env:
-  - PYVER=2.7
-  - PYVER=3.4
-  - PYVER=3.5
+  global:
+    # PYPIPASSWORD=...
+    secure: "WQEAx6rliDGGDmHhsDBsGCR+nUf4CJFWSq+6+tx4F5Z3tOE5YBLoZ+jkJWuAB5841FwrHD0Cf8Ihoxfx/1tNDj8wBlDDNE+M1tL9izakPoJGLjK6B1iBLswG8Nv7jkl4EEZQniVhsQkdLLqiw/hYjnlhMUPd5vzHC9pJAwFwEIBvfQajigkp7ENj+D+9FI5OV534XuAuoiPN45G6IhDMrdDpDa4BGp/7w9FvSzOKjUHqAqNSYnkDiS//xciRwrGbXXhYmYkS4bWqCPBV5ZusmNC9Mnr1IfsFyVeuvumWr9Tifl4L3bH/NhGLJPrvYkg8KUo8AVabQquKcpPzDysW/3C9s3ihuKDQIUa0q2nvO7+Ya1tABeENj+v6FKbUIyQ1KsO2j7pI2Sm6rHa9hz0MVIrTR999+0/qIxP8UWpM1Z2mr3pLhc4ffh3AtxieBKP7NadjPaCRcD/pXLUf0pdDGwxN9bbTkH+yvkGpHbpUPZxLsvkqbjlq1R94mRaVYx/ARvHO2hXC2vp6NuGZSCVMaItuLYF3pKMYBHrLhUwYaTMKPWkg3/aybI5hNDRgZEIs7t+pSQ/vXlxsL7C6z4iJ0GxAlIRbj9jONd2DgEUylCUs4/G+h14PrGdwN38mpH8BXIdjb1KL9tsyITYL/9Dx7TwasZLMJyeAaumYxPxCnJ8="
+  
+  matrix:
+    - PYVER=2.7
+    - PYVER=3.4
+    - PYVER=3.5
 
 addons:
   # For linux only
@@ -27,7 +32,7 @@ install:
   - PATH="$PYENV_ROOT/bin:$PATH"
   - eval "$(pyenv init -)"
   # Install appropriate python version using pyenv
-  - PYVER="$(pyenv install --list | grep -E "^\\s*$PYVER" | sort -n -t. -k2 | tail -n1)"
+  - PYVER="$(pyenv install --list | grep -E "^\\s*$PYVER" | sort -n -t. -k3 | tail -n1)"
   - echo "Selected Python $PYVER"
   - pyenv install $PYVER
   - pyenv global $PYVER
@@ -40,13 +45,42 @@ script:
   # Compile and run the test suite under linux only
   - >
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-      gcc -std=c99 -g -Irig_c_sa -o run_tests tests/*.c rig_c_sa/*.c -lm $(pkg-config --cflags --libs check) && \
+      gcc -std=c99 -g \
+          -Irig_c_sa \
+          -o run_tests \
+          tests/*.c \
+          rig_c_sa/*.c \
+          -lm $(pkg-config --cflags --libs check) && \
       valgrind -q --leak-check=full ./run_tests
     else
       echo "Test suite disabled on OS X!";
     fi
-  # Make sure CFFI wrapper compiles
+  # Make sure CFFI wrapper compiles...
   - python setup.py install --user
+  - python -c "import rig_c_sa"
+
+after_success:
+  - echo "[distutils]"                                  > ~/.pypirc
+  - echo "index-servers ="                             >> ~/.pypirc
+  - echo "    pypi"                                    >> ~/.pypirc
+  - echo "[pypi]"                                      >> ~/.pypirc
+  - echo "repository=https://testpypi.python.org/pypi" >> ~/.pypirc
+  - echo "username=rigbots"                            >> ~/.pypirc
+  - echo "password=$PYPIPASSWORD"                      >> ~/.pypirc
+  - cat ~/.pypirc
+  # Deploy OS X builds to PyPI for tagged releases
+  - >
+    if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+      if [ -n "$TRAVIS_TAG" ]; then
+        pip install twine;
+        python setup.py sdist bdist_wheel;
+        twine upload --skip-existing dist/*;
+      else
+        echo "Not deploying as not a tagged commit."
+      fi
+    else
+      echo "Not deploying as not running on OS X";
+    fi
 
 notifications:
-        email: false
+  email: false

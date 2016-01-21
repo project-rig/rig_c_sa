@@ -8,6 +8,9 @@
 
 environment:
 
+  PYPIPASSWORD:
+    secure: o5RqpBL+6iPfYTqQpoqfjbAoNGBl2Q8dDTnY0SZ6FsUQOIwba1Jd/1UQ8vZe71v2
+
   # Build against 32- and 64-bit versions of the supported Python releases.
   matrix:
 
@@ -22,10 +25,6 @@ environment:
     - PYTHON: "C:\\Python35"
     - PYTHON: "C:\\Python35-x64"
 
-install:
-  # We need wheel installed to build wheels
-  - "%PYTHON%\\python.exe -m pip install wheel"
-
 build: off
 
 test_script:
@@ -34,11 +33,15 @@ test_script:
   - "win_build.cmd %PYTHON%\\python.exe setup.py install"
   - "win_build.cmd %PYTHON%\\python.exe -c \"import rig_c_sa\""
 
-after_test:
-  # Build a wheel for Windows.
-  # The 'build.cmd' is required for 64-bit Python 3.4.
-  - "win_build.cmd %PYTHON%\\python.exe setup.py bdist_wheel"
+on_success:
+  - echo [distutils]                                  > %USERPROFILE%\\.pypirc
+  - echo index-servers =                             >> %USERPROFILE%\\.pypirc
+  - echo     pypi                                    >> %USERPROFILE%\\.pypirc
+  - echo [pypi]                                      >> %USERPROFILE%\\.pypirc
+  - echo repository=https://testpypi.python.org/pypi >> %USERPROFILE%\\.pypirc
+  - echo username=rigbots                            >> %USERPROFILE%\\.pypirc
+  - echo password=%PYPIPASSWORD%                     >> %USERPROFILE%\\.pypirc
+  - set HOME=%USERPROFILE%
+  - "win_build.cmd %PYTHON%\\python.exe -m pip install wheel"
+  - if "%APPVEYOR_REPO_TAG%"=="true" ( win_build.cmd %PYTHON%\\python.exe setup.py bdist_wheel upload -r pypi ) else ( echo "Not deploying because not a tagged commit." )
 
-artifacts:
-  # bdist_wheel puts your built wheel in the dist directory
-  - path: dist\*
