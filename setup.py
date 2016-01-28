@@ -11,7 +11,10 @@ setup(
     packages=find_packages(),
     
     # Files required by CFFI wrapper
-    package_data = {'rig_c_sa': ['sa.c', 'sa.h']},
+    package_data = {'rig_c_sa': ['sa.c', 'sa.h',
+                                 'usort/defs.c',
+                                 'usort/u1_sort.c',
+                                 'usort/u1_sort.h']},
 
     # Metadata for PyPi
     url="https://github.com/project-rig/rig_c_sa",
