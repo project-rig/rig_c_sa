@@ -45,6 +45,132 @@ static void teardown(void) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * Check the sa_get_distance_between function does as it says on the tin for
+ * torus topologies.
+ */
+START_TEST (test_get_distance_between_torus)
+{
+	sa_state_t *s = sa_new(4, 5, 1, 2, 0);
+	ck_assert(s);
+	s->has_wrap_around_links = true;
+	s->num_movable_vertices = 2;
+	
+	sa_vertex_t *va = sa_new_vertex(s, 0);
+	ck_assert(va);
+	sa_vertex_t *vb = sa_new_vertex(s, 0);
+	ck_assert(vb);
+	s->vertices[0] = va;
+	s->vertices[1] = vb;
+	
+	sa_add_vertex_to_chip(s, va, 0, 0, true);
+	sa_add_vertex_to_chip(s, vb, 0, 0, true);
+	
+	// NB: for the purposes of this test I don't bother removing and re-adding
+	// the vertex to each chip but rather just directly twiddle the X/Y
+	// coordinates.
+	#define TRY(xa, ya, xb, yb, expected) \
+		do { \
+			va->x = (xa); \
+			va->y = (ya); \
+			vb->x = (xb); \
+			vb->y = (yb); \
+			ck_assert_int_eq(sa_get_distance_between(s, va, vb), (expected)); \
+		} while (0)
+	
+	// Same chip
+	TRY(0,0, 0,0, 0);
+	TRY(1,2, 1,2, 0);
+	
+	// Adjacent
+	TRY(1,2, 1,1, 1);
+	TRY(1,2, 1,3, 1);
+	TRY(1,2, 2,2, 1);
+	TRY(1,2, 0,2, 1);
+	TRY(1,2, 2,3, 1);
+	TRY(1,2, 0,1, 1);
+	
+	// "Wrong" diagonal
+	TRY(1,2, 0,3, 2);
+	TRY(1,2, 2,1, 2);
+	
+	// Wrap-around
+	TRY(0,0, 3,0, 1);
+	TRY(3,0, 0,0, 1);
+	TRY(0,0, 0,4, 1);
+	TRY(0,4, 0,0, 1);
+	TRY(0,0, 3,4, 1);
+	TRY(3,4, 0,0, 1);
+	
+	#undef TRY
+	
+	sa_free(s);
+}
+END_TEST
+
+/**
+ * Check the sa_get_distance_between function does as it says on the tin for
+ * non-torus topologies.
+ */
+START_TEST (test_get_distance_between_mesh)
+{
+	sa_state_t *s = sa_new(4, 5, 1, 2, 0);
+	ck_assert(s);
+	s->has_wrap_around_links = false;
+	s->num_movable_vertices = 2;
+	
+	sa_vertex_t *va = sa_new_vertex(s, 0);
+	ck_assert(va);
+	sa_vertex_t *vb = sa_new_vertex(s, 0);
+	ck_assert(vb);
+	s->vertices[0] = va;
+	s->vertices[1] = vb;
+	
+	sa_add_vertex_to_chip(s, va, 0, 0, true);
+	sa_add_vertex_to_chip(s, vb, 0, 0, true);
+	
+	// NB: for the purposes of this test I don't bother removing and re-adding
+	// the vertex to each chip but rather just directly twiddle the X/Y
+	// coordinates.
+	#define TRY(xa, ya, xb, yb, expected) \
+		do { \
+			va->x = (xa); \
+			va->y = (ya); \
+			vb->x = (xb); \
+			vb->y = (yb); \
+			ck_assert_int_eq(sa_get_distance_between(s, va, vb), (expected)); \
+		} while (0)
+	
+	// Same chip
+	TRY(0,0, 0,0, 0);
+	TRY(1,2, 1,2, 0);
+	
+	// Adjacent
+	TRY(1,2, 1,1, 1);
+	TRY(1,2, 1,3, 1);
+	TRY(1,2, 2,2, 1);
+	TRY(1,2, 0,2, 1);
+	TRY(1,2, 2,3, 1);
+	TRY(1,2, 0,1, 1);
+	
+	// "Wrong" diagonal
+	TRY(1,2, 0,3, 2);
+	TRY(1,2, 2,1, 2);
+	
+	// Don't wrap-around!
+	TRY(0,0, 3,0, 3);
+	TRY(3,0, 0,0, 3);
+	TRY(0,0, 0,4, 4);
+	TRY(0,4, 0,0, 4);
+	TRY(0,0, 3,4, 4);
+	TRY(3,4, 0,0, 4);
+	
+	#undef TRY
+	
+	sa_free(s);
+}
+END_TEST
+
+/**
  * Check the sa_get_net_cost function does as it says on the tin for the
  * special case where we just have one vertex.
  */
@@ -96,10 +222,7 @@ START_TEST (test_get_net_cost)
 	sa_add_vertex_to_net(s, n, v2);
 	sa_add_vertex_to_net(s, n, v3);
 	
-	/* Set vertex positions. Note that:
-	 * * Not in any order of x or y positions
-	 * * Have an example of a vertex on edges of both dimensions
-	 * * Have an example of a vertex on both extremes of edge
+	/* Set vertex positions.
 	 *
 	 *          x
 	 *      0 ----> 19
@@ -119,45 +242,19 @@ START_TEST (test_get_net_cost)
 	v2->x = 3;  v2->y = 1;
 	v3->x = 19; v3->y = 8;
 	
-	// Without wrap-around we have a 17x8 boundingbox at weight 2.0.
+	// Without wrap-around links
 	s->has_wrap_around_links = false;
-	ck_assert_msg(sa_get_net_cost(s, n) == (17.0 + 8.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (17.0 + 8.0) * 2.0);
+	ck_assert(sa_get_net_cost(s, n) == (13 +  // 0 -> 1
+	                                    1 +   // 0 -> 2
+	                                    17    // 0 -> 3
+	                                   ) * 2.0);
 	
-	// With wrap-around the bounding box wraps giving a 8x4 bounding box at
-	// weight 2.0
+	// Without wrap-around
 	s->has_wrap_around_links = true;
-	ck_assert_msg(sa_get_net_cost(s, n) == (8.0 + 4.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (8.0 + 4.0) * 2.0);
-	
-	/* Set alternative vertex positions. Note that:
-	 * * The wrapping and non-wrapping bounding box is the same
-	 *
-	 *          x
-	 *      0 ----> 19
-	 * ....................
-	 * ....................
-	 * ....................  9
-	 * .......2.3.......... /|\
-	 * ....................  |
-	 * .......0.1..........  |  y
-	 * ....................  |
-	 * ....................  0
-	 * ....................
-	 * ....................
-	 */
-	v0->x = 7; v0->y = 4;
-	v1->x = 9; v1->y = 4;
-	v2->x = 7; v2->y = 6;
-	v3->x = 9; v3->y = 6;
-	
-	// Without wrap-around we have a 2x2 boundingbox at weight 2.0.
-	s->has_wrap_around_links = false;
-	ck_assert_msg(sa_get_net_cost(s, n) == (2.0 + 2.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (2.0 + 2.0) * 2.0);
-	s->has_wrap_around_links = true;
-	ck_assert_msg(sa_get_net_cost(s, n) == (2.0 + 2.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (2.0 + 2.0) * 2.0);
+	ck_assert(sa_get_net_cost(s, n) == (7 +  // 0 -> 1
+	                                    1 +  // 0 -> 2
+	                                    3    // 0 -> 3
+	                                   ) * 2.0);
 	
 	sa_free(s);
 }
@@ -205,9 +302,9 @@ START_TEST (test_get_swap_cost)
 	vc->x = 0; vc->y = 1;
 	vd->x = 1; vd->y = 1;
 	
-	// Nets x and y should have their cost reduced by 1 for a total cost saving
-	// of 2.
-	ck_assert(sa_get_swap_cost(s, 0, 0, va, 1, 0, vb) == -2.0);
+	// The y net should have had its cost reduced by 1 for a total cost saving of
+	// 1.
+	ck_assert(sa_get_swap_cost(s, 0, 0, va, 1, 0, vb) == -1.0);
 	
 	sa_free(s);
 }
@@ -445,13 +542,13 @@ START_TEST (test_run_steps)
 	
 	// Many swaps should be rejected since once the two vertices are close
 	// together they should not be moved apart.
-	ck_assert(num_accepted < 250);
+	ck_assert_int_lt(num_accepted, 500);
 	
 	// The cost deviation should be small since once close they should stay close
 	ck_assert(cost_delta_sd < 1.0);
 	
-	// The cost change overall should drop from 6 to 1.
-	ck_assert_msg(cost_delta == -5.0, "%f == %f", cost_delta, -5.0);
+	// The cost change overall should drop from 3 to 1.
+	ck_assert_msg(cost_delta == -2.0, "%f == %f", cost_delta, -2.0);
 	
 	sa_free(s);
 }
@@ -467,6 +564,8 @@ make_sa_algorithm_suite(void)
 	// Add tests to the test case
 	TCase *tc_core = tcase_create("Core");
 	tcase_add_checked_fixture(tc_core, setup, teardown);
+	tcase_add_test(tc_core, test_get_distance_between_torus);
+	tcase_add_test(tc_core, test_get_distance_between_mesh);
 	tcase_add_test(tc_core, test_get_net_cost_one_vertex);
 	tcase_add_test(tc_core, test_get_net_cost);
 	tcase_add_test(tc_core, test_get_swap_cost);

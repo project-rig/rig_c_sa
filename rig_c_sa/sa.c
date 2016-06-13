@@ -11,8 +11,6 @@
 
 #include <math.h>
 
-#include "usort/u1_sort.c"
-
 #include "sa.h"
 
 // Windows support for alloca...
@@ -22,6 +20,16 @@
 #else
 #include <alloca.h>
 #endif
+
+
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) < (b)) ? (b) : (a))
+
+#define MIN3(a, b, c) (MIN((a), MIN((b), (c))))
+#define MAX3(a, b, c) (MAX((a), MAX((b), (c))))
+
+#define MIN4(a, b, c, d) (MIN(MIN((a), (b)), MIN((c), (d))))
+#define MAX4(a, b, c, d) (MAX(MAX((a), (b)), MAX((c), (d))))
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -457,101 +465,69 @@ sa_bool_t sa_make_room_on_chip(sa_state_t *state, int x, int y,
 	return sa_true;
 }
 
-int compar(const void *a, const void *b) {
-	return *((int *)a) - *((int *)b);
-}
-
-void sort(sa_state_t *state, int *array, size_t length) {
-  if (state->width <= 256 && state ->height <= 256) {
-    // If dimensions are always 8 bits or less (true for all real SpiNNaker
-    // machines), we use a fast sort algorithm.
-    u1_sort(array, length);
-  } else {
-    // ...if something odd is being done, we use a bog-standard qsort.
-    qsort(array, length, sizeof(int), &compar);
-  }
+int sa_get_distance_between(sa_state_t *state,
+                            sa_vertex_t *va,
+                            sa_vertex_t *vb) {
+	int x;
+	int y;
+	int w;
+	int h;
+	
+	if (state->has_wrap_around_links) {
+		// See http://jhnet.co.uk/articles/torus_paths or
+		// http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.74.7275 for a
+		// derrivation and explanation of this function.
+		
+		// Aliases for convenience
+		w = state->width;
+		h = state->height;
+		
+		// Get the distance from va to vb if va was at (0, 0) in a non-torus
+		// topology.
+		x = vb->x - va->x;
+		y = vb->y - va->y;
+		if (x < 0) x += w;
+		if (y < 0) y += h;
+		
+		return MIN4(MAX(x, y),       // No wrap
+		            w - x + y,       // Wrap X
+		            x + h - y,       // Wrap Y
+		            MAX(w-x, h-y));  // Wrap X and Y
+	} else { // No wrap-around links
+		// Compute distance between the two vertices
+		x = vb->x - va->x;
+		y = vb->y - va->y;
+		
+		// In a minimised, 3D hexagonal torus coordinate, two values are non-zero
+		// with opposite signs and one value is zero. The number of hops in that
+		// coordinate is the sum of the absolute values of the three coordinate
+		// components. Another way of computing this is to take the difference
+		// between the largest and smallest coordinate component. Expressed another
+		// way we can take the range of the three elements to get the number of
+		// hops.
+		//
+		// A non-minimised coordinate N is related to its minimised coordinate M by
+		// the function M = N - a*(1,1,1) for some integer a. The reverse is also
+		// true (i.e. we can can get to N from M by adding/subtracting 1s to all
+		// three elements of the vector). Note that the range of three numbers does
+		// not change when all three numbers are incremented/decremented by the
+		// same amount. As a result, taking the range of a non-minimal coordinate
+		// also gives the number of hops of a minimised 3D vector!
+		return MAX3(x, y, 0) - MIN3(x, y, 0);
+	}
 }
 
 double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 	size_t i;
-	int *xs, *ys;
-	int last_x, last_y, max_delta_x, max_delta_y;
-	int delta_x, delta_y;
-	int bbox_width, bbox_height;
-	int min_x, max_x, min_y, max_y;
-		
-	// If 1 or 0 vertices in the net, the net can never have non-zero cost. This
-	// also saves some special-case handling below.
-	if (net->num_vertices <= 1)
-		return 0.0;
+	int total_distance = 0;
 	
-	if (state->has_wrap_around_links) {
-		// Torroidal network: When wrap-around links exist, we find the minimal
-		// bounding box and return the HPWL weighted by the net weight. To do this
-		// the largest gap between any pair of vertices is found:
-		//
-		//     |    x     x             x   |
-		//                ^-------------^
-		//                    max gap
-		//
-		// The minimal bounding box then goes the other way around:
-		//
-		//     |    x     x             x   |
-		//      ----------^             ^---
-		
-		// Create a sorted array of the x and y positions
-		xs = alloca(net->num_vertices * sizeof(int));
-		ys = alloca(net->num_vertices * sizeof(int));
-		
-		for (i = 0; i < net->num_vertices; i++) {
-			xs[i] = net->vertices[i]->x;
-			ys[i] = net->vertices[i]->y;
-		}
-		
-		sort(state, xs, net->num_vertices);
-		sort(state, ys, net->num_vertices);
-		
-		// Find the largest gap in each
-		last_x = xs[net->num_vertices - 1] - (int)state->width;
-		last_y = ys[net->num_vertices - 1] - (int)state->height;
-		max_delta_x = 0;
-		max_delta_y = 0;
-		for (i = 0; i < net->num_vertices; i++) {
-			delta_x = xs[i] - last_x;
-			delta_y = ys[i] - last_y;
-			last_x = xs[i];
-			last_y = ys[i];
-			
-			if (delta_x > max_delta_x)
-				max_delta_x = delta_x;
-			if (delta_y > max_delta_y)
-				max_delta_y = delta_y;
-		}
-		
-		// From this we can work out the bounding box size and thus the HPWL.
-		bbox_width = (int)state->width - max_delta_x;
-		bbox_height = (int)state->height - max_delta_y;
-		return (bbox_width + bbox_height) * net->weight;
-	} else {
-		// Non-toriodal network: Compute bounding box
-		min_x = net->vertices[0]->x;
-		max_x = min_x;
-		min_y = net->vertices[0]->y;
-		max_y = min_y;
-		for (i = 1; i < net->num_vertices; i++) {
-			if (net->vertices[i]->x < min_x)
-				min_x = net->vertices[i]->x;
-			if (max_x < net->vertices[i]->x)
-				max_x = net->vertices[i]->x;
-			if (net->vertices[i]->y < min_y)
-				min_y = net->vertices[i]->y;
-			if (max_y < net->vertices[i]->y)
-				max_y = net->vertices[i]->y;
-		}
-		
-		// Compute weighted HPWL
-		return ((max_x - min_x) + (max_y - min_y)) * net->weight;
+	for (i = 1; i < net->num_vertices; i++) {
+		total_distance += sa_get_distance_between(state,
+		                                          net->vertices[0],
+		                                          net->vertices[i]);
 	}
+	
+	return total_distance * net->weight;
 }
 
 double sa_get_swap_cost(sa_state_t *state,
@@ -644,7 +620,7 @@ sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, dou
 	// increase it are acceptable with a probability related to how bad the swap
 	// is and how high the temperature is.
 	*cost = sa_get_swap_cost(state, ax, ay, va, bx, by, vb);
-	swap_accepted = ((*cost) <= 0.0)
+	swap_accepted = ((*cost) < 0.0)
 	                 || ((double)rand() / RAND_MAX) < exp(-(*cost) / temperature);
 	
 	// Attempt to fit the vertices removed from chip B into the space left behind

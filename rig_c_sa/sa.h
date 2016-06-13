@@ -391,6 +391,11 @@ void sa_get_random_nearby_chip(const sa_state_t *state, int x, int y,
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
+ * Compute the shortest-path distance between the two specified vertices.
+ */
+int sa_get_distance_between(sa_state_t *state, sa_vertex_t *va, sa_vertex_t *vb);
+
+/**
  * Compute the current cost of the specified net.
  *
  * Cost is estimated using a simple HPWL heuristic on a square grid...
