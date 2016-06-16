@@ -531,7 +531,7 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 		// From this we can work out the bounding box size and thus the HPWL.
 		bbox_width = (int)state->width - max_delta_x;
 		bbox_height = (int)state->height - max_delta_y;
-		return (bbox_width + bbox_height) * net->weight;
+		return sqrt(net->num_vertices) * (bbox_width + bbox_height) * net->weight;
 	} else {
 		// Non-toriodal network: Compute bounding box
 		min_x = net->vertices[0]->x;
@@ -550,7 +550,7 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 		}
 		
 		// Compute weighted HPWL
-		return ((max_x - min_x) + (max_y - min_y)) * net->weight;
+		return sqrt(net->num_vertices) * ((max_x - min_x) + (max_y - min_y)) * net->weight;
 	}
 }
 

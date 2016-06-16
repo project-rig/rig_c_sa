@@ -121,14 +121,14 @@ START_TEST (test_get_net_cost)
 	
 	// Without wrap-around we have a 17x8 boundingbox at weight 2.0.
 	s->has_wrap_around_links = false;
-	ck_assert_msg(sa_get_net_cost(s, n) == (17.0 + 8.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (17.0 + 8.0) * 2.0);
+	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (17.0 + 8.0) * 2.0,
+	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (17.0 + 8.0) * 2.0);
 	
 	// With wrap-around the bounding box wraps giving a 8x4 bounding box at
 	// weight 2.0
 	s->has_wrap_around_links = true;
-	ck_assert_msg(sa_get_net_cost(s, n) == (8.0 + 4.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (8.0 + 4.0) * 2.0);
+	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (8.0 + 4.0) * 2.0,
+	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (8.0 + 4.0) * 2.0);
 	
 	/* Set alternative vertex positions. Note that:
 	 * * The wrapping and non-wrapping bounding box is the same
@@ -153,11 +153,11 @@ START_TEST (test_get_net_cost)
 	
 	// Without wrap-around we have a 2x2 boundingbox at weight 2.0.
 	s->has_wrap_around_links = false;
-	ck_assert_msg(sa_get_net_cost(s, n) == (2.0 + 2.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (2.0 + 2.0) * 2.0);
+	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (2.0 + 2.0) * 2.0,
+	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (2.0 + 2.0) * 2.0);
 	s->has_wrap_around_links = true;
-	ck_assert_msg(sa_get_net_cost(s, n) == (2.0 + 2.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), (2.0 + 2.0) * 2.0);
+	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (2.0 + 2.0) * 2.0,
+	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (2.0 + 2.0) * 2.0);
 	
 	sa_free(s);
 }
@@ -207,7 +207,8 @@ START_TEST (test_get_swap_cost)
 	
 	// Nets x and y should have their cost reduced by 1 for a total cost saving
 	// of 2.
-	ck_assert(sa_get_swap_cost(s, 0, 0, va, 1, 0, vb) == -2.0);
+	double swap_cost = sa_get_swap_cost(s, 0, 0, va, 1, 0, vb);
+	ck_assert(abs(swap_cost - (sqrt(2) * -2.0)) < 0.001);
 	
 	sa_free(s);
 }
@@ -344,7 +345,7 @@ START_TEST (test_step_bad_cost)
 			num_swapped++;
 			
 			// Cost should have increased
-			ck_assert(cost == 1.0);
+			ck_assert(cost == sqrt(2) * 1.0);
 			
 			// Vertices should have moved
 			ck_assert(sa_get_chip_vertex(s, 0, 0) == NULL);
@@ -451,7 +452,7 @@ START_TEST (test_run_steps)
 	ck_assert(cost_delta_sd < 1.0);
 	
 	// The cost change overall should drop from 6 to 1.
-	ck_assert_msg(cost_delta == -5.0, "%f == %f", cost_delta, -5.0);
+	ck_assert_msg(abs(cost_delta - (sqrt(2) * -5.0)) < 0.001, "%f == %f", cost_delta, sqrt(2) * -5.0);
 	
 	sa_free(s);
 }
