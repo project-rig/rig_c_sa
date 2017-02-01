@@ -26,10 +26,14 @@ ffi.set_source(
             return total;
         }
     """,
-    libraries=[] if platform.system() == "Windows" else ["m"],
+    libraries=(
+        [] if platform.system() == "Windows" else ["m", "gomp"]
+    ),
     sources=[os.path.join(source_dir, "sa.c")],
     include_dirs=[source_dir],
-    extra_compile_args=[] if platform.system() == "Windows" else ["-O3"],
+    extra_compile_args=(
+        ["/openmp"] if platform.system() == "Windows" else ["-O3", "-fopenmp"]
+    ),
 )
 
 ffi.cdef("""

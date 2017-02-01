@@ -564,6 +564,7 @@ double sa_get_swap_cost(sa_state_t *state,
 	
 	// Calculate total cost of all nets before swap
 	double before_cost = 0.0;
+#pragma omp parallel for private(v, i, which_verts) reduction(+:before_cost) num_threads(2)
 	for (which_verts = 0; which_verts < 2; which_verts++) {
 		sa_vertex_t *v = (which_verts == 0) ? va : vb;
 		while (v) {
@@ -595,6 +596,7 @@ double sa_get_swap_cost(sa_state_t *state,
 	
 	// Calculate the cost after swap
 	after_cost = 0.0;
+#pragma omp parallel for private(v, i, which_verts) reduction(+:after_cost) num_threads(2)
 	for (which_verts = 0; which_verts < 2; which_verts++) {
 		sa_vertex_t *v = (which_verts == 0) ? va : vb;
 		while (v) {
