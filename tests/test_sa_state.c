@@ -111,6 +111,14 @@ START_TEST (test_constructors)
 		s->nets[i] = n;
 		
 		ck_assert(n->num_vertices == nv - i);
+		ck_assert_int_eq(n->bbox.x1, -1);
+		ck_assert_int_eq(n->bbox.x2, -1);
+		ck_assert_int_eq(n->bbox.y1, -1);
+		ck_assert_int_eq(n->bbox.y2, -1);
+		ck_assert_int_eq(n->last_bbox.x1, -1);
+		ck_assert_int_eq(n->last_bbox.x2, -1);
+		ck_assert_int_eq(n->last_bbox.y1, -1);
+		ck_assert_int_eq(n->last_bbox.y2, -1);
 		n->weight = i + 1.0;
 		
 		// Attempt to add connections between involved vertices

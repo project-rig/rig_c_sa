@@ -176,6 +176,16 @@ sa_net_t *sa_new_net(const sa_state_t *state, size_t num_vertices) {
 	net->num_vertices = num_vertices;
 	net->counted = sa_false;
 	
+	// Mark the bounding boxes as "invalid"
+	net->bbox.x1 = -1;
+	net->bbox.x2 = -1;
+	net->bbox.y1 = -1;
+	net->bbox.y2 = -1;
+	net->last_bbox.x1 = -1;
+	net->last_bbox.x2 = -1;
+	net->last_bbox.y1 = -1;
+	net->last_bbox.y2 = -1;
+	
 	// Keep valgrind happy
 	for (i = 0; i < num_vertices; i++)
 		net->vertices[i] = NULL;
@@ -472,18 +482,18 @@ void sort(sa_state_t *state, int *array, size_t length) {
   }
 }
 
-double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
+void sa_compute_bbox(sa_state_t *state, sa_net_t *net) {
 	size_t i;
 	int *xs, *ys;
 	int last_x, last_y, max_delta_x, max_delta_y;
 	int delta_x, delta_y;
-	int bbox_width, bbox_height;
 	int min_x, max_x, min_y, max_y;
 		
-	// If 1 or 0 vertices in the net, the net can never have non-zero cost. This
-	// also saves some special-case handling below.
+	// If 1 or 0 vertices in the net, the net can never have non-zero cost.
+	// Leaving the bounding box at -1, -1, -1, -1 will result in a zero-sized
+	// bounding box and thus zero cost.
 	if (net->num_vertices <= 1)
-		return 0.0;
+		return;
 	
 	if (state->has_wrap_around_links) {
 		// Torroidal network: When wrap-around links exist, we find the minimal
@@ -514,24 +524,32 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 		// Find the largest gap in each
 		last_x = xs[net->num_vertices - 1] - (int)state->width;
 		last_y = ys[net->num_vertices - 1] - (int)state->height;
-		max_delta_x = 0;
+		max_x = last_x; // The coordinate of the left side of the gap
+		max_y = last_y;
+		max_delta_x = 0; // The size of the gap
 		max_delta_y = 0;
 		for (i = 0; i < net->num_vertices; i++) {
 			delta_x = xs[i] - last_x;
 			delta_y = ys[i] - last_y;
+			
+			if (delta_x > max_delta_x) {
+				max_delta_x = delta_x;
+				max_x = last_x;
+			}
+			if (delta_y > max_delta_y) {
+				max_delta_y = delta_y;
+				max_y = last_y;
+			}
+			
 			last_x = xs[i];
 			last_y = ys[i];
-			
-			if (delta_x > max_delta_x)
-				max_delta_x = delta_x;
-			if (delta_y > max_delta_y)
-				max_delta_y = delta_y;
 		}
 		
-		// From this we can work out the bounding box size and thus the HPWL.
-		bbox_width = (int)state->width - max_delta_x;
-		bbox_height = (int)state->height - max_delta_y;
-		return sqrt(net->num_vertices) * (bbox_width + bbox_height) * net->weight;
+		// From this we can work out the bounding box
+		net->bbox.x1 = max_x + max_delta_x;
+		net->bbox.x2 = max_x < 0 ? max_x + (int)state->width : max_x;
+		net->bbox.y1 = max_y + max_delta_y;
+		net->bbox.y2 = max_y < 0 ? max_y + (int)state->height : max_y;;
 	} else {
 		// Non-toriodal network: Compute bounding box
 		min_x = net->vertices[0]->x;
@@ -549,9 +567,70 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net) {
 				max_y = net->vertices[i]->y;
 		}
 		
-		// Compute weighted HPWL
-		return sqrt(net->num_vertices) * ((max_x - min_x) + (max_y - min_y)) * net->weight;
+		net->bbox.x1 = min_x;
+		net->bbox.x2 = max_x;
+		net->bbox.y1 = min_y;
+		net->bbox.y2 = max_y;
 	}
+}
+
+double sa_get_net_cost(sa_state_t *state, sa_net_t *net,
+                       sa_bool_t vertices_moved,
+                       int ax, int ay, int bx, int by) {
+	int bbox_width, bbox_height;
+	sa_bool_t recompute_bbox;
+	sa_bool_t bbox_wraps_x;
+	sa_bool_t bbox_wraps_y;
+	
+	// Determine if we can re-use the cached bounding-box information
+	recompute_bbox = sa_true; // Should be overwritten below. Set here defensively.
+	if (net->bbox.x1 < 0) {
+		// Must always recompute if the bbox is not valid.
+		recompute_bbox = sa_true;
+	} else if (!vertices_moved) {
+		// If nothing has moved (and the bbox is valid) we don't need to recompute.
+		recompute_bbox = sa_false;
+	} else {
+		// Things have moved, work out whether any of these changes might change
+		// the bounding box.
+		//
+		// The bounding box may have changed if:
+		//
+		// * A vertex has moved outside the old bounding box.
+		// * A vertex previously 'supporting' one wall of the bounding box is
+		//   moved (possibly making the bounding box smaller).
+		//
+		// Since we don't know which vertices have moved to/from each chip we must
+		// assume the worst case that if either chip coordinate lies on or outside
+		// the net bounding box, the whole bounding box must be recomputed.
+		bbox_wraps_x = net->bbox.x2 < net->bbox.x1;
+		bbox_wraps_y = net->bbox.y2 < net->bbox.y1;
+		recompute_bbox = (
+			(bbox_wraps_x ? (!(ax > net->bbox.x1 || ax < net->bbox.x2) ||
+			                 !(bx > net->bbox.x1 || bx < net->bbox.x2))
+			              : (ax >= net->bbox.x2 || ax <= net->bbox.x1 ||
+			                 bx >= net->bbox.x2 || bx <= net->bbox.x1)) ||
+			(bbox_wraps_y ? (!(ay > net->bbox.y1 || ay < net->bbox.y2) ||
+			                 !(by > net->bbox.y1 || by < net->bbox.y2))
+			              : (ay >= net->bbox.y2 || ay <= net->bbox.y1 ||
+			                 by >= net->bbox.y2 || by <= net->bbox.y1))
+		);
+	}
+	
+	// Recompute the bounding box, if required
+	if (recompute_bbox)
+		sa_compute_bbox(state, net);
+	
+	// Calculate the HPWL
+	bbox_width = net->bbox.x2 - net->bbox.x1;
+	bbox_height = net->bbox.y2 - net->bbox.y1;
+	if (bbox_width < 0)
+		bbox_width += (int)state->width;
+	if (bbox_height < 0)
+		bbox_height += (int)state->height;
+	
+	// Compute weighted HPWL
+	return sqrt(net->num_vertices) * (bbox_width + bbox_height) * net->weight;
 }
 
 double sa_get_swap_cost(sa_state_t *state,
@@ -562,14 +641,17 @@ double sa_get_swap_cost(sa_state_t *state,
 	sa_vertex_t *v;
 	double after_cost;
 	
-	// Calculate total cost of all nets before swap
+	// Calculate total cost of all nets before swap (and cache their bounding
+	// boxes)
 	double before_cost = 0.0;
 	for (which_verts = 0; which_verts < 2; which_verts++) {
 		sa_vertex_t *v = (which_verts == 0) ? va : vb;
 		while (v) {
 			for (i = 0; i < v->num_nets; i++) {
 				if (!v->nets[i]->counted) {
-					before_cost += sa_get_net_cost(state, v->nets[i]);
+					before_cost += sa_get_net_cost(state, v->nets[i],
+					                               sa_false, -1,-1,-1,-1);
+					v->nets[i]->last_bbox = v->nets[i]->bbox;
 					v->nets[i]->counted = sa_true;
 				}
 			}
@@ -600,7 +682,8 @@ double sa_get_swap_cost(sa_state_t *state,
 		while (v) {
 			for (i = 0; i < v->num_nets; i++) {
 				if (v->nets[i]->counted) { // Meaning inverted in this pass
-					after_cost += sa_get_net_cost(state, v->nets[i]);
+					after_cost += sa_get_net_cost(state, v->nets[i],
+					                              sa_true, ax, ay, bx, by);
 					v->nets[i]->counted = sa_false; // Meaning inverted in this pass
 				}
 			}
@@ -616,6 +699,8 @@ sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, dou
 	// Select a random vertex to swap
 	sa_vertex_t *va = sa_get_random_movable_vertex(state);
 	sa_vertex_t *vb;
+	sa_vertex_t *v;
+	size_t i, which_verts;
 	int ax = va->x;
 	int ay = va->y;
 	sa_bool_t swap_accepted;
@@ -651,18 +736,30 @@ sa_bool_t sa_step(sa_state_t *state, int distance_limit, double temperature, dou
 	// after removing va from chip A. If not enough space (or if the swap was not
 	// accepted, revert everything.
 	if (!swap_accepted || !sa_add_vertices_to_chip_if_fit(state, vb, ax, ay)) {
-		// The vertices didn't fit, put everything back where it came
+		// The vertices didn't fit
+		
+		// Revert the cached net bounding box computations
+		for (which_verts = 0; which_verts < 2; which_verts++) {
+			v = (which_verts == 0) ? va : vb;
+			while (v) {
+				for (i = 0; i < v->num_nets; i++)
+					v->nets[i]->bbox = v->nets[i]->last_bbox;
+				v = v->next;
+			}
+		}
+		
+		// Put the vertices back where they came from
 		sa_add_vertices_to_chip(state, vb, bx, by);
 		sa_add_vertices_to_chip(state, va, ax, ay);
 		*cost = 0.0;
 		return sa_false;
+	} else {
+		// Vertices vb did fit onto chip a. Finally put va onto vb.
+		sa_add_vertices_to_chip(state, va, bx, by);
+		
+		// Swap completed successfully
+		return sa_true;
 	}
-	
-	// Finally put va onto vb.
-	sa_add_vertices_to_chip(state, va, bx, by);
-	
-	// Swap completed successfully
-	return sa_true;
 }
 
 void sa_run_steps(sa_state_t *state, size_t num_steps, int distance_limit, double temperature,

@@ -45,11 +45,14 @@ static void teardown(void) {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Check the sa_get_net_cost function does as it says on the tin for the
+ * Check the sa_compute_bbox function does as it says on the tin for the
  * special case where we just have one vertex.
  */
-START_TEST (test_get_net_cost_one_vertex)
+START_TEST (test_compute_bbox_one_vertex)
 {
+	// Try with/without wrap-around links
+	s->has_wrap_around_links = _i == 0;
+
 	sa_net_t *n = sa_new_net(s, 1);
 	ck_assert(n);
 	s->nets[0] = n;
@@ -63,20 +66,18 @@ START_TEST (test_get_net_cost_one_vertex)
 	v->x = 1;
 	v->y = 2;
 	
-	// Try with and without wraparound
-	s->has_wrap_around_links = false;
-	ck_assert(sa_get_net_cost(s, n) == 0.0);
-	
-	s->has_wrap_around_links = true;
-	ck_assert(sa_get_net_cost(s, n) == 0.0);
+	// Bounding box should have zero size
+	sa_compute_bbox(s, n);
+	ck_assert_int_eq(n->bbox.x1 - n->bbox.x2, 0);
+	ck_assert_int_eq(n->bbox.y1 - n->bbox.y2, 0);
 }
 END_TEST
 
 /**
- * Check the sa_get_net_cost function does as it says on the tin for a more
+ * Check the sa_compute_bbox function does as it says on the tin for a more
  * interesting case.
  */
-START_TEST (test_get_net_cost)
+START_TEST (test_compute_bbox)
 {
 	// Custom size required
 	sa_state_t *s = sa_new(20, 10, nr, 4, 1);
@@ -85,7 +86,7 @@ START_TEST (test_get_net_cost)
 	sa_net_t *n = sa_new_net(s, 4);
 	ck_assert(n);
 	s->nets[0] = n;
-	n->weight = 2.0;
+	n->weight = 1.0;
 	
 	sa_vertex_t *v0 = sa_new_vertex(s, 1); ck_assert(v0); s->vertices[0] = v0;
 	sa_vertex_t *v1 = sa_new_vertex(s, 1); ck_assert(v1); s->vertices[1] = v1;
@@ -119,16 +120,21 @@ START_TEST (test_get_net_cost)
 	v2->x = 3;  v2->y = 1;
 	v3->x = 19; v3->y = 8;
 	
-	// Without wrap-around we have a 17x8 boundingbox at weight 2.0.
+	// Without wrap-around we have a 17x8 boundingbox
 	s->has_wrap_around_links = false;
-	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (17.0 + 8.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (17.0 + 8.0) * 2.0);
+	sa_compute_bbox(s, n);
+	ck_assert_int_eq(n->bbox.x1, 2);
+	ck_assert_int_eq(n->bbox.x2, 19);
+	ck_assert_int_eq(n->bbox.y1, 0);
+	ck_assert_int_eq(n->bbox.y2, 8);
 	
-	// With wrap-around the bounding box wraps giving a 8x4 bounding box at
-	// weight 2.0
+	// With wrap-around the bounding box wraps giving a 8x4 bounding box
 	s->has_wrap_around_links = true;
-	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (8.0 + 4.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (8.0 + 4.0) * 2.0);
+	sa_compute_bbox(s, n);
+	ck_assert_int_eq(n->bbox.x1, 15);
+	ck_assert_int_eq(n->bbox.x2, 3);
+	ck_assert_int_eq(n->bbox.y1, 7);
+	ck_assert_int_eq(n->bbox.y2, 1);
 	
 	/* Set alternative vertex positions. Note that:
 	 * * The wrapping and non-wrapping bounding box is the same
@@ -151,13 +157,144 @@ START_TEST (test_get_net_cost)
 	v2->x = 7; v2->y = 6;
 	v3->x = 9; v3->y = 6;
 	
-	// Without wrap-around we have a 2x2 boundingbox at weight 2.0.
+	// Should always be a 2x2 boundingbox
 	s->has_wrap_around_links = false;
-	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (2.0 + 2.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (2.0 + 2.0) * 2.0);
+	sa_compute_bbox(s, n);
+	ck_assert_int_eq(n->bbox.x1, 7);
+	ck_assert_int_eq(n->bbox.x2, 9);
+	ck_assert_int_eq(n->bbox.y1, 4);
+	ck_assert_int_eq(n->bbox.y2, 6);
+	
 	s->has_wrap_around_links = true;
-	ck_assert_msg(sa_get_net_cost(s, n) == sqrt(4) * (2.0 + 2.0) * 2.0,
-	              "%f != %f", sa_get_net_cost(s, n), sqrt(4) * (2.0 + 2.0) * 2.0);
+	sa_compute_bbox(s, n);
+	ck_assert_int_eq(n->bbox.x1, 7);
+	ck_assert_int_eq(n->bbox.x2, 9);
+	ck_assert_int_eq(n->bbox.y1, 4);
+	ck_assert_int_eq(n->bbox.y2, 6);
+	
+	sa_free(s);
+}
+END_TEST
+
+/**
+ * Check the sa_get_net_cost function does as it says on the tin.
+ */
+START_TEST (test_get_net_cost)
+{
+	double cost;
+	
+	// Custom size required
+	sa_state_t *s = sa_new(20, 10, nr, 4, 1);
+	ck_assert(s);
+	
+	sa_net_t *n = sa_new_net(s, 4);
+	ck_assert(n);
+	s->nets[0] = n;
+	n->weight = 2.0;
+	
+	sa_vertex_t *v0 = sa_new_vertex(s, 1); ck_assert(v0); s->vertices[0] = v0;
+	sa_vertex_t *v1 = sa_new_vertex(s, 1); ck_assert(v1); s->vertices[1] = v1;
+	sa_vertex_t *v2 = sa_new_vertex(s, 1); ck_assert(v2); s->vertices[2] = v2;
+	sa_vertex_t *v3 = sa_new_vertex(s, 1); ck_assert(v3); s->vertices[3] = v3;
+	sa_add_vertex_to_net(s, n, v0);
+	sa_add_vertex_to_net(s, n, v1);
+	sa_add_vertex_to_net(s, n, v2);
+	sa_add_vertex_to_net(s, n, v3);
+	
+	/* Set vertex positions.
+	 *          x
+	 *      0 ----> 19
+	 * ....................
+	 * ...................3
+	 * ...............1....  9
+	 * .................... /|\
+	 * ....................  |
+	 * ....................  |  y
+	 * ....................  |
+	 * ....................  0
+	 * ...2................
+	 * ..0.................
+	 */
+	v0->x = 2;  v0->y = 0;
+	v1->x = 15; v1->y = 7;
+	v2->x = 3;  v2->y = 1;
+	v3->x = 19; v3->y = 8;
+	
+	// Make sure net cost is scaled/weighted correctly for non-wrapping
+	s->has_wrap_around_links = false;
+	cost = sa_get_net_cost(s, n, false, -1, -1, -1, -1);
+	ck_assert(cost == sqrt(4) * 2.0 * (17 + 8));
+	
+	// Make sure net cost is scaled/weighted correctly for wrapping
+	n->bbox = n->last_bbox;
+	s->has_wrap_around_links = true;
+	cost = sa_get_net_cost(s, n, false, -1, -1, -1, -1);
+	ck_assert(cost == sqrt(4) * 2.0 * (8.0 + 4.0));
+	
+	// In the tests below we make sure the bounding box is only updated when
+	// necessary. To verify that this is happening, in many tests the bbox value
+	// is corrupted such that it doesn't represent the points in the example net
+	// above. This means that if the bbox is updated/not when it shouldn't have
+	// been it will be obvious.
+	
+	// Make sure that the cached bbox is used when available (NB: we 'corrupt'
+	// the bbox to nolonger match the vertices to verify that the bbox is not
+	// being recomputed).
+	n->bbox.x1 = 1;
+	n->bbox.x2 = 5;
+	n->bbox.y1 = 2;
+	n->bbox.y2 = 6;
+	cost = sa_get_net_cost(s, n, false, -1, -1, -1, -1);
+	ck_assert(cost == sqrt(4) * 2.0 * (4 + 4));
+	
+	// Make sure that the cached bbox is used when updates occur within the
+	// bounds of the box
+	n->bbox.x1 = 1;
+	n->bbox.x2 = 5;
+	n->bbox.y1 = 2;
+	n->bbox.y2 = 6;
+	cost = sa_get_net_cost(s, n, true, 2, 3, 4, 5);
+	ck_assert(cost == sqrt(4) * 2.0 * (4 + 4));
+	
+	// Likewise but this time for a wrapping box
+	n->bbox.x1 = 18;
+	n->bbox.x2 = 1;
+	n->bbox.y1 = 8;
+	n->bbox.y2 = 1;
+	cost = sa_get_net_cost(s, n, true, 0, 0, 19, 9);
+	ck_assert(cost == sqrt(4) * 2.0 * (3 + 3));
+	
+	// Should recompute if on boundry
+	n->bbox.x1 = 1;
+	n->bbox.x2 = 5;
+	n->bbox.y1 = 2;
+	n->bbox.y2 = 6;
+	cost = sa_get_net_cost(s, n, true, 1, 5, 2, 6);
+	ck_assert(cost == sqrt(4) * 2.0 * (8 + 4));
+	
+	// Likewise but this time for a wrapping box
+	n->bbox.x1 = 18;
+	n->bbox.x2 = 1;
+	n->bbox.y1 = 8;
+	n->bbox.y2 = 1;
+	cost = sa_get_net_cost(s, n, true, 18, 8, 1, 1);
+	ck_assert(cost == sqrt(4) * 2.0 * (8 + 4));
+	
+	// Should recompute if outside boundry
+	n->bbox.x1 = 1;
+	n->bbox.x2 = 5;
+	n->bbox.y1 = 2;
+	n->bbox.y2 = 6;
+	cost = sa_get_net_cost(s, n, true, 0, 0, 18, 9);
+	ck_assert(cost == sqrt(4) * 2.0 * (8 + 4));
+	
+	// Likewise but this time for a wrapping box
+	n->bbox.x1 = 18;
+	n->bbox.x2 = 1;
+	n->bbox.y1 = 8;
+	n->bbox.y2 = 1;
+	cost = sa_get_net_cost(s, n, true, 2, 3, 4, 5);
+	ck_assert(cost == sqrt(4) * 2.0 * (8 + 4));
 	
 	sa_free(s);
 }
@@ -359,9 +496,21 @@ START_TEST (test_step_bad_cost)
 			ck_assert(sa_get_chip_resources(s, 0, 0, 0) == 1);
 			ck_assert(sa_get_chip_resources(s, 1, 0, 0) == 0);
 			
+			// Net should have widened bounding box
+			ck_assert_int_eq(n->bbox.x1, 0);
+			ck_assert_int_eq(n->bbox.x2, 1);
+			ck_assert_int_eq(n->bbox.y1, 0);
+			ck_assert_int_eq(n->bbox.y2, 0);
+			
 			// Put the vertex back for the next trail
 			sa_remove_vertex_from_chip(s, v0);
 			sa_add_vertex_to_chip(s, v0, 0, 0, true);
+			
+			// Restore the bounding box
+			n->bbox.x1 = 0;
+			n->bbox.x2 = 0;
+			n->bbox.y1 = 0;
+			n->bbox.y2 = 0;
 		} else {
 			num_not_swapped++;
 			
@@ -377,6 +526,12 @@ START_TEST (test_step_bad_cost)
 			ck_assert(v1->y == 0);
 			ck_assert(sa_get_chip_resources(s, 0, 0, 0) == 0);
 			ck_assert(sa_get_chip_resources(s, 1, 0, 0) == 1);
+			
+			// Net should have same bounding box
+			ck_assert_int_eq(n->bbox.x1, 0);
+			ck_assert_int_eq(n->bbox.x2, 0);
+			ck_assert_int_eq(n->bbox.y1, 0);
+			ck_assert_int_eq(n->bbox.y2, 0);
 		}
 	}
 	
@@ -435,11 +590,15 @@ START_TEST (test_run_steps)
 	// The cost deviation should be notable
 	ck_assert(cost_delta_sd > 1.0);
 	
-	// Restore the locations of the vertices
+	// Restore the locations of the vertices and reset the net bounding box
 	sa_remove_vertex_from_chip(s, v0);
 	sa_remove_vertex_from_chip(s, v1);
 	sa_add_vertex_to_chip(s, v0, 0, 0, true);
 	sa_add_vertex_to_chip(s, v1, 3, 3, true);
+	n->bbox.x1 = -1;
+	n->bbox.x2 = -1;
+	n->bbox.y1 = -1;
+	n->bbox.y2 = -1;
 	
 	// Now with low temperatures
 	sa_run_steps(s, 1000, 4, 0.0, &num_accepted, &cost_delta, &cost_delta_sd);
@@ -468,7 +627,8 @@ make_sa_algorithm_suite(void)
 	// Add tests to the test case
 	TCase *tc_core = tcase_create("Core");
 	tcase_add_checked_fixture(tc_core, setup, teardown);
-	tcase_add_test(tc_core, test_get_net_cost_one_vertex);
+	tcase_add_loop_test(tc_core, test_compute_bbox_one_vertex, 0, 2);
+	tcase_add_test(tc_core, test_compute_bbox);
 	tcase_add_test(tc_core, test_get_net_cost);
 	tcase_add_test(tc_core, test_get_swap_cost);
 	tcase_add_test(tc_core, test_step_no_free_chips);

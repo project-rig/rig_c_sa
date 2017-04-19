@@ -22,7 +22,7 @@ ffi.set_source(
             size_t i;
             double total = 0.0;
             for (i = 0; i < state->num_nets; i++)
-                total += sa_get_net_cost(state, state->nets[i]);
+                total += sa_get_net_cost(state, state->nets[i], sa_false, -1,-1,-1,-1);
             return total;
         }
     """,

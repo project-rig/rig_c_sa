@@ -18,8 +18,27 @@ static const sa_bool_t sa_false = 0;
 // Data structures
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef struct sa_bbox sa_bbox_t;
 typedef struct sa_net sa_net_t;
 typedef struct sa_vertex sa_vertex_t;
+
+// Describes a 2D bounding box. Used to cache the bounding boxes used to
+// calculate placement cost.
+struct sa_bbox {
+	//    +--------------+-- y2
+	//    |              |
+	//    |              |
+	//    |              |
+	//    +--------------+-- y1
+	//    |              |
+	//    x1            x2
+	// Note that x2 may be < x1 if the bounding box wraps-around! Coordinates are
+	// all inclusive.
+	int x1;
+	int x2;
+	int y1;
+	int y2;
+};
 
 // Information associated with an individual net
 struct sa_net {
@@ -31,6 +50,17 @@ struct sa_net {
 	// Has this net been counted when computing net weight? (Used by
 	// sa_get_swap_cost).
 	sa_bool_t counted;
+	
+	// The bounding box which fits most tightly around the vertices in this net.
+	// Used by sa_get_net_cost to avoid recomputing the cost of nets when
+	// possible. If all coordinates are -ve this value is invalid and must be
+	// recalculated.
+	sa_bbox_t bbox;
+	
+	// The previous value of bbox. Used to restore an old bounding-box estimate
+	// when a swap is rejected. sa_get_swap_cost sets this value when computing
+	// bounding boxes prior to a swap.
+	sa_bbox_t last_bbox;
 	
 	// The set of vertices which belong to this net
 	sa_vertex_t *vertices[];
@@ -390,12 +420,33 @@ void sa_get_random_nearby_chip(const sa_state_t *state, int x, int y,
 // Simulated annealing algorithm functions
 ////////////////////////////////////////////////////////////////////////////////
 
+
+/**
+ * Compute bounding box around the vertices in a net and write it to net->bbox.
+ */
+void sa_compute_bbox(sa_state_t *state, sa_net_t *net);
+
 /**
  * Compute the current cost of the specified net.
  *
- * Cost is estimated using a simple HPWL heuristic on a square grid...
+ * Cost is estimated using a simple HPWL heuristic on a square grid.
+ *
+ * The bounding box used to compute net costs is cached in net->bbox when
+ * calling this function. When no vertices have been moved according to the
+ * moved argument, the bounding box is not updated. It is up to the caller to
+ * save net->bbox (e.g. into net->last_bbox) and then restore it if a vertex is
+ * moved and then restored to its previous location.
+ *
+ * @param state The SA algorithm state associated with the net.
+ * @param net The net whose cost is to be computed.
+ * @param vertices_moved True if some vertices involved with the net has moved,
+ *                       false otherwise.
+ * @param ax,ay,bx,by If vertices_moved is true, gives the coordinates of the
+ *                    two chips between which vertices have been moved.
  */
-double sa_get_net_cost(sa_state_t *state, sa_net_t *net);
+double sa_get_net_cost(sa_state_t *state, sa_net_t *net,
+                       sa_bool_t vertices_moved,
+                       int ax, int ay, int bx, int by);
 
 /**
  * Compute the change in cost which would result from swapping the location of
@@ -407,6 +458,13 @@ double sa_get_net_cost(sa_state_t *state, sa_net_t *net);
  * those of vb. Since the vertices will be later re-added to some chip
  * depending on the result of this computation, the values will be re-set later
  * regardless.
+ *
+ * Another side-effect of this function is that when computing the net cost
+ * prior to swapping, the computed bounding box is cached in net->bbox and
+ * net->last_bbox.  When computing the net cost after swapping, net->bbox is
+ * overwritten. If the swap is later accepted, this value should be retained.
+ * If the swap is later rejected, net->bbox must be overwritten with
+ * net->last_bbox.
  *
  * @param state The SA algorithm state associated with the vertices.
  * @param ax The X position of the chip vertices va were removed from.
